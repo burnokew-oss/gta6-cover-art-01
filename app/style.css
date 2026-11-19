@@ -1,0 +1,54 @@
+/* Vice Coast Cover Studio — dark editor chrome around a bright poster. */
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: #14101d; color: #f4eefc; font: 15px/1.45 system-ui, sans-serif; }
+.app { display: flex; gap: 28px; align-items: flex-start; justify-content: center; padding: 22px; }
+.controls { width: 348px; flex: none; display: flex; flex-direction: column; gap: 14px; }
+.controls header h1 {
+  margin: 0; font-size: 34px; letter-spacing: 2px; font-weight: 900;
+  background: linear-gradient(90deg, #ffe66d, #ff7a3d, #ff2e63);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.tagline { margin: 4px 0 0; color: #b9aecb; font-size: 13px; }
+fieldset { border: 1px solid #3a2f52; border-radius: 12px; padding: 12px; margin: 0; background: #1d1729; }
+legend { font-weight: 800; font-size: 13px; letter-spacing: 0.4px; color: #ffd166; padding: 0 6px; }
+label { display: flex; flex-direction: column; gap: 5px; font-weight: 600; font-size: 13px; }
+input[type=text], select {
+  font: inherit; padding: 8px 10px; border: 1px solid #4a3d68; border-radius: 8px;
+  background: #241d36; color: #f4eefc;
+}
+input[type=range] { accent-color: #ff2e63; width: 100%; }
+.slider { flex-direction: row; align-items: center; gap: 8px; }
+.slider input { flex: 1; }
+.row { display: flex; gap: 10px; }
+.row > * { flex: 1; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+button {
+  font: inherit; font-weight: 700; padding: 9px 12px; border: 0; border-radius: 8px;
+  background: #ff2e63; color: #fff; cursor: pointer;
+}
+button:hover { filter: brightness(1.12); }
+button:active { transform: translateY(1px); }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button { background: #2c2340; color: #d9cdf0; padding: 8px 10px; font-size: 13px; }
+.seg button.on { background: #ff2e63; color: #fff; }
+.export-seg button { background: #0f766e; flex: 1; white-space: nowrap; }
+.export-seg button:hover { background: #14a08f; }
+.photo-row { display: flex; gap: 8px; }
+.file-btn {
+  flex: 1; text-align: center; padding: 9px 6px; border-radius: 8px; cursor: pointer;
+  background: #2c2340; color: #d9cdf0; font-size: 13px;
+}
+.file-btn input { display: none; }
+.file-btn.loaded { background: #0f766e; color: #fff; }
+.hint { margin: 8px 0 0; color: #b9aecb; font-size: 12.5px; }
+.checks { display: flex; gap: 14px; flex-wrap: wrap; }
+.checks label { flex-direction: row; align-items: center; gap: 5px; font-weight: 500; }
+.stage { flex: 1; max-width: 760px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+#cover { width: min(72vh, 100%); aspect-ratio: 1 / 1; height: auto; border-radius: 6px; box-shadow: 0 18px 50px rgba(0,0,0,0.55); cursor: crosshair; background: #2b1838; }
+.stage-hint { margin: 0; color: #8f84a8; font-size: 12.5px; text-align: center; }
+/* Screenshot scenes: cover alone, full-bleed. */
+body.shot-cover .controls, body.shot-cover .stage-hint { display: none; }
+body.shot-cover { background: #000; }
+body.shot-cover .app { padding: 0; display: block; }
+body.shot-cover .stage { max-width: none; }
+body.shot-cover #cover { width: 100vw; height: 100vh; aspect-ratio: auto; border-radius: 0; box-shadow: none; }
