@@ -4,107 +4,107 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vice Coast Cover Studio — GTA-style poster maker</title>
-<link rel="icon" href="data:,">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23ff2e88'/%3E%3Ctext x='16' y='22' font-family='Arial' font-size='15' font-weight='900' fill='white' text-anchor='middle'%3EVC%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-<main class="app" id="app">
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-title">VICE&nbsp;COAST</span>
-      <span class="brand-sub">COVER STUDIO</span>
+<header class="topbar" id="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">VC</span>
+    <div>
+      <h1>Vice Coast Cover Studio</h1>
+      <p>Turn any photo into a multi-panel poster. Offline — your photos never leave this machine.</p>
     </div>
-    <p class="tagline">Your photos as a sunset poster. Three steps, one PNG.</p>
-    <ol class="steps">
-      <li><b>1</b> Add photos</li>
-      <li><b>2</b> Pick a layout</li>
-      <li><b>3</b> Export</li>
-    </ol>
-  </header>
+  </div>
+  <button id="exportTop" class="btn btn-primary" type="button">Export PNG</button>
+</header>
 
-  <section class="photos" aria-label="Photos">
-    <h2>Photos</h2>
-    <button id="addPhotos" type="button" class="btn primary">Add photos</button>
-    <input id="photoInput" type="file" accept="image/*" multiple hidden>
-    <button id="loadSamples" type="button" class="btn">Load samples</button>
-    <button id="autoFill" type="button" class="btn">Auto-fill panels</button>
-    <p class="hint">Drop photos here — or load samples. One photo is enough: every panel gets a different crop of it.</p>
-    <div id="tray" class="tray" aria-label="Loaded photos"></div>
-    <p id="photoCount" class="count">0 photos ready</p>
-  </section>
+<main class="studio">
+  <aside class="controls" id="controls" aria-label="Cover controls">
 
-  <section class="stage" aria-label="Cover preview">
-    <div class="canvas-wrap">
-      <canvas id="preview" width="900" height="900" aria-label="Live cover preview"></canvas>
-      <p id="panelHint" class="panel-hint">Click a panel to select it — drag to move, scroll to zoom.</p>
-    </div>
-    <div class="panel-bar">
-      <label>Panel zoom
-        <input id="panelZoom" type="range" min="100" max="260" value="120">
+    <section class="group">
+      <h2>1 · Photos</h2>
+      <label class="file-label">Add photos
+        <input id="photoInput" type="file" accept="image/*" multiple>
       </label>
-      <button id="flipPanel" type="button" class="btn small">Flip</button>
-      <button id="resetCrop" type="button" class="btn small">Reset crop</button>
-      <span id="selectedPanel" class="selected-panel">Panel 1 · Hero</span>
-    </div>
-  </section>
+      <div class="row">
+        <button id="autoFillBtn" class="btn" type="button">Auto-fill empty panels</button>
+        <button id="clearPhotosBtn" class="btn" type="button">Clear</button>
+      </div>
+      <label class="check"><input id="onePhotoMode" type="checkbox"> One photo, every panel — a different crop in each</label>
+      <div id="photoTray" class="tray" aria-label="Loaded photos"></div>
+    </section>
 
-  <aside class="controls" aria-label="Cover controls">
-    <h2>Layout</h2>
-    <div id="layoutPicker" class="picker layouts" role="group" aria-label="Layout"></div>
+    <section class="group">
+      <h2>2 · Sample scenes</h2>
+      <p class="note">Original scenes drawn by the app itself — no photo needed.</p>
+      <div class="samples" id="sampleButtons">
+        <button class="btn sample" type="button" data-scene="beach">Beach Sunset</button>
+        <button class="btn sample" type="button" data-scene="neon">Neon Street</button>
+        <button class="btn sample" type="button" data-scene="coast">Coastal Road</button>
+        <button class="btn sample" type="button" data-scene="skyline">Dusk Skyline</button>
+      </div>
+    </section>
 
-    <h2>Grade</h2>
-    <div id="gradePicker" class="picker grades" role="group" aria-label="Colour grade"></div>
+    <section class="group">
+      <h2>3 · Layout</h2>
+      <div class="choices" id="layoutChoices" role="group" aria-label="Layout"></div>
+    </section>
 
-    <h2>Poster ink</h2>
-    <label class="row">Selected panel
-      <input id="panelInk" type="range" min="0" max="100" value="70">
-      <span id="panelInkValue">70%</span>
-    </label>
-    <label class="row">All panels
-      <input id="allInk" type="range" min="0" max="100" value="70">
-      <span id="allInkValue">70%</span>
-    </label>
-    <p class="hint">Poster ink = posterize + halftone dots + gradient map. Higher ink, flatter comic-poster look.</p>
+    <section class="group">
+      <h2>4 · Colour grade</h2>
+      <div class="choices" id="gradeChoices" role="group" aria-label="Colour grade"></div>
+    </section>
 
-    <h2>Caption</h2>
-    <label class="field">Title
-      <input id="titleText" type="text" maxlength="24" value="VICE COAST">
-    </label>
-    <label class="field">Script subtitle
-      <input id="subtitleText" type="text" maxlength="32" value="Golden Hour Run">
-    </label>
-    <label class="field">Tagline
-      <input id="taglineText" type="text" maxlength="48" value="ON THE COAST, EVERYONE IS SOMEBODY">
-    </label>
-    <label class="field">Badge text
-      <input id="badgeText" type="text" maxlength="18" value="HOT ★ 2026">
-    </label>
-    <label class="row">Title size
-      <input id="titleSize" type="range" min="60" max="150" value="100">
-    </label>
-    <label class="row">Title across
-      <input id="titleX" type="range" min="0" max="60" value="6">
-    </label>
-    <label class="row">Title down
-      <input id="titleY" type="range" min="0" max="80" value="62">
-    </label>
-    <p class="hint">Drag the title on the preview to move it off a face.</p>
+    <section class="group">
+      <h2>5 · Export size</h2>
+      <div class="choices" id="sizeChoices" role="group" aria-label="Export size"></div>
+    </section>
 
-    <h2>Size</h2>
-    <div id="sizePicker" class="picker sizes" role="group" aria-label="Export size">
-      <button type="button" data-size="1080x1080" class="size-btn active">1080 × 1080<br><small>square</small></button>
-      <button type="button" data-size="1080x1350" class="size-btn">1080 × 1350<br><small>portrait</small></button>
-      <button type="button" data-size="1920x1080" class="size-btn">1920 × 1080<br><small>wide</small></button>
-    </div>
-    <button id="exportPng" type="button" class="btn export">Export PNG</button>
-    <p id="status" class="status" role="status">Load samples, then export.</p>
-    <p class="offline">Offline — photos never leave this machine.</p>
+    <section class="group">
+      <h2>6 · Caption</h2>
+      <label>Title <input id="titleInput" type="text" maxlength="24" value="VICE COAST"></label>
+      <label>Subtitle <input id="subtitleInput" type="text" maxlength="40" value="Sunset Heist"></label>
+      <label>Tagline <input id="taglineInput" type="text" maxlength="64" value="EIGHT PANELS · ONE CITY · NO WAY OUT"></label>
+      <label>Badge <input id="badgeInput" type="text" maxlength="12" value="★ NEW ★"></label>
+      <div class="row">
+        <button id="resetTitleBtn" class="btn" type="button">Title back to its band</button>
+      </div>
+      <p class="note">Drag the title on the cover to move it over the panels.</p>
+    </section>
+
+    <section class="group">
+      <h2>7 · Selected panel</h2>
+      <div class="row">
+        <button id="prevPanelBtn" class="btn" type="button">◀ Prev</button>
+        <span id="panelLabel" class="panel-label">Panel 1 of 7</span>
+        <button id="nextPanelBtn" class="btn" type="button">Next ▶</button>
+      </div>
+      <label>Zoom <input id="zoomSlider" type="range" min="1" max="3" step="0.01" value="1"></label>
+      <label>Pan sideways <input id="panXSlider" type="range" min="-1" max="1" step="0.01" value="0"></label>
+      <label>Pan up / down <input id="panYSlider" type="range" min="-1" max="1" step="0.01" value="0"></label>
+      <div class="row">
+        <button id="flipBtn" class="btn" type="button">Flip photo</button>
+        <button id="fillPanelBtn" class="btn" type="button">Fill from photos</button>
+      </div>
+      <label>Poster ink — this panel <input id="inkSlider" type="range" min="0" max="1" step="0.01" value="0.65"></label>
+      <label>Poster ink — all panels <input id="inkAllSlider" type="range" min="0" max="1" step="0.01" value="0.65"></label>
+      <p class="note">Click a panel on the cover to select it. Drag a panel to pan its photo, scroll on it to zoom.</p>
+    </section>
+
+    <section class="group">
+      <h2>8 · Export</h2>
+      <button id="exportBtn" class="btn btn-primary btn-wide" type="button">Export PNG</button>
+      <p id="status" class="status" role="status">Load a photo or pick a sample scene to begin.</p>
+    </section>
   </aside>
-</main>
 
-<section class="shot-only" id="shotStage" hidden>
-  <canvas id="shotCanvas" aria-label="Exported cover"></canvas>
-</section>
+  <section class="stage" id="stage">
+    <canvas id="coverCanvas" width="720" height="720" aria-label="The cover preview"></canvas>
+    <p class="hint">Drag the title to move it · drag a photo to pan it · scroll on a panel to zoom · click a panel to edit it</p>
+    <p class="fineprint">All lettering, grades and sample scenes are original work drawn in your browser. No Rockstar Games logo, artwork or font is used. No network request is made.</p>
+  </section>
+</main>
 
 <script type="module" src="./src/main.js"></script>
 </body>
