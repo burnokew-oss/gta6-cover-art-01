@@ -1,54 +1,54 @@
+[![make.fun · gta6-cover-art-01](https://make.fun/badge/gta6-cover-art-01.svg)](https://make.fun/bounty/gta6-cover-art-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
+[![rank](https://make.fun/badge/gta6-cover-art-01/burnokew-oss/gta6-cover-art-01/rank.svg)](https://make.fun/bounty/gta6-cover-art-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
+[![reward](https://make.fun/badge/gta6-cover-art-01/burnokew-oss/gta6-cover-art-01/reward.svg)](https://make.fun/bounty/gta6-cover-art-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
+
 # Vice Coast Cover Studio
 
-An offline web app that turns your photos and a caption into multi-panel
-cover art in the spirit of a Vice City poster — slanted comic panels filled
-edge to edge, a giant gradient title lying over the art, a neon script
-subtitle, press stars, a starburst seal, a palm-silhouette strip, a billing
-block, and a PNG export in the three common post sizes
-(1080 × 1080, 1080 × 1350, 1920 × 1080).
+An offline web app that turns a person's photo and a caption into multi-panel
+GTA-style cover art — slanted comic panels edge to edge, a giant gradient
+poster title laid over the art, a neon script subtitle, and a full set of
+printed dressing (press quote with five stars, a starburst seal, a palm strip,
+a movie-style billing block, a barcode and a studio monogram) — then exports
+it as a PNG at 1080 × 1080, 1080 × 1350 or 1920 × 1080, or all three at once.
 
-Everything is drawn by the app itself: six built-in sample scenes are
-painted procedurally with continuous tone — layered gradients, seeded
-multi-octave noise, soft shadows, bokeh, bloom and a shaded portrait hero —
-then finished with a light poster grade (many posterize levels, a whisper
-of halftone, fine grain) so the photography survives into the print.
-Your own photos get the same treatment, with per-panel crop, pan, zoom,
-flip and ink controls, six colour grades, seven layouts (two of them
-slanted comic layouts), and a one-photo mode that gives every panel a
-different crop.
+Six original procedural sample scenes are built in — a modelled portrait at a
+magenta sunset bay, dawn beach walkers, a neon street with a detailed car and
+its wet-road reflection, a land-first aerial coast, a blue-hour skyline and a
+golden coastal road — each with its own sky. Six colour grades (Sunset, Neon,
+Golden, Miami, Vice Blue and the duotone Comic Ink) run through a light
+photographic poster finish: an S-curve and grain first, then a many-level
+posterize, a subtle halftone and the grade ramp, so panels still read as
+photographs with a print texture.
 
-## Screenshots
-
-`screenshots/` holds the studio at work: the hero exported cover (a
-slanted comic layout, portrait hero panel, full dressing), the editor
-with the sample scenes spread across its panels, a second exported cover
-in another size and grade, and the editor in a second layout with the
-per-panel controls open.
+Photos are handled per panel — crop, pan, zoom and flip, a one-photo mode
+that gives every panel a different crop, and a spread action that deals the
+loaded photos and scenes across the panels. Everything runs from the static
+files in `app/`; photos never leave the machine and the app makes no network
+request. All artwork, lettering and wording are the studio's own.
 
 ## Run it
 
 ```sh
-node serve.ts          # serves app/ at http://localhost:8080
+node serve.ts            # serves app/ at http://localhost:8080
 ```
 
-Or open `app/index.html` through any static file server. No network is
-used and photos never leave your machine.
-
-## Hand the entry in
+Then open the address in a desktop browser, add a photo, type a caption and
+export. To hand the entry in the way the grader does:
 
 ```sh
 mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 ```
 
-`main.ts` (Node 22, standard library only) copies `app/` and
-`screenshots/` to the output directory and writes `dossier.json` with the
-vendored make.fun library in `vendor/makefun-app.ts`.
+`main.ts` (Node 22, standard library only) copies `app/` and `screenshots/`
+to the output directory and writes its `dossier.json` with the vendored
+make.fun library in `vendor/`, copied unchanged from the competition kit.
 
-## On make.fun
+## Screenshots
 
-[![make.fun · gta6-cover-art-01](https://make.fun/badge/gta6-cover-art-01.svg)](https://make.fun/bounty/gta6-cover-art-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
-[![rank](https://make.fun/badge/gta6-cover-art-01/burnokew-oss/gta6-cover-art-01/rank.svg)](https://make.fun/bounty/gta6-cover-art-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
-[![reward](https://make.fun/badge/gta6-cover-art-01/burnokew-oss/gta6-cover-art-01/reward.svg)](https://make.fun/bounty/gta6-cover-art-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
+`screenshots/1-cover.jpg` is the flagship export: the Comic Hero Plus layout
+(portrait hero, neon car, aerial coast, dawn walkers) in the Sunset grade at
+1080 × 1350, with the full dressing. `3-cover.jpg` is a second export in the
+Miami grade at 1920 × 1080 with a different scene mix; `2-editor.jpg` and
+`4-editor.jpg` show the editor itself, panels loaded and controls in view.
 
-All lettering, artwork and wording are original to this studio — no
-Rockstar Games logo, artwork or fonts. MIT licensed.
+MIT licensed — see `LICENSE`.
