@@ -1,36 +1,49 @@
-// serve.ts — a tiny local static server for app/ (Node 22, standard library
-// only). `node serve.ts [--port 8099]` serves the app at http://localhost:8080
-// so it can be tried in a desktop browser with no build step. It refuses any
-// path that escapes app/ and is a development convenience, nothing more.
+// serve.ts — a small local static server for trying the app in a
+// desktop browser: `node serve.ts` serves app/ at http://localhost:8080
+// (pass --port <n> to change it). Node 22 standard library only. It maps
+// the file extensions the app uses to their MIME types, keeps every
+// request inside app/, and adds no caching, so edits show on reload.
+// This is a development convenience for the maker's own machine, not a
+// public web server.
 
 import { createReadStream, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = resolve(fileURLToPath(new URL('./app', import.meta.url)));
-const args = process.argv.slice(2);
-const portAt = args.indexOf('--port');
-const wanted = portAt === -1 ? 8080 : Number(args[portAt + 1]);
+const appRoot = resolve(fileURLToPath(new URL('./app', import.meta.url)));
+
+const argv = process.argv.slice(2);
+const portAt = argv.indexOf('--port');
+const wanted = portAt === -1 ? 8080 : Number(argv[portAt + 1]);
 const port = Number.isInteger(wanted) && wanted > 0 && wanted < 65536 ? wanted : 8080;
 
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
-  '.webp': 'image/webp',
+  '.woff': 'font/woff',
   '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.otf': 'font/otf',
+  '.wasm': 'application/wasm',
+  '.mp3': 'audio/mpeg',
+  '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav',
   '.txt': 'text/plain; charset=utf-8',
+  '.bin': 'application/octet-stream',
 };
 
-createServer((req, res) => {
+const server = createServer((req, res) => {
   let path: string;
   try {
     path = decodeURIComponent(new URL(req.url ?? '/', 'http://localhost').pathname);
@@ -39,26 +52,33 @@ createServer((req, res) => {
     return;
   }
   if (path.endsWith('/')) path += 'index.html';
-  const file = resolve(join(root, normalize(path)));
-  if (file !== root && !file.startsWith(root + sep)) {
+  const target = resolve(join(appRoot, normalize(path)));
+  if (target !== appRoot && !target.startsWith(appRoot + sep)) {
     res.writeHead(403).end('forbidden');
     return;
   }
-  let size: number;
+  let length: number;
   try {
-    const st = statSync(file);
-    if (!st.isFile()) throw new Error('not a file');
-    size = st.size;
+    const info = statSync(target);
+    if (!info.isFile()) throw new Error('directory');
+    length = info.size;
   } catch {
     res.writeHead(404).end('not found');
     return;
   }
   res.writeHead(200, {
-    'content-type': TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream',
-    'content-length': size,
+    'content-type': TYPES[extname(target).toLowerCase()] ?? 'application/octet-stream',
+    'content-length': length,
     'cache-control': 'no-store',
   });
-  createReadStream(file).pipe(res);
-}).listen(port, '127.0.0.1', () => {
-  console.log(`Vice Coast Cover Studio is on http://localhost:${port}`);
+  createReadStream(target).pipe(res);
+});
+
+server.on('error', (err) => {
+  console.error(`Could not start the local server on port ${port}: ${err.message}`);
+  process.exitCode = 1;
+});
+
+server.listen(port, '127.0.0.1', () => {
+  console.log(`Vice Coast Cover Studio is open at http://localhost:${port}`);
 });

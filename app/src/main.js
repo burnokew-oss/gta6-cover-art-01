@@ -1,314 +1,465 @@
-// main.js — the Vice Coast Cover Studio editor: three steps from a photo to a
-// PNG. Everything runs locally; photos are read from the person's machine and
-// never leave it. No network request is made by this app, ever.
+// main.js — the Vice Coast Cover Studio editor (round 8). Wires the
+// three-step flow (add photos, pick a size, export PNG) to the poster
+// engine: photos and the studio's own sample scenes spread across the
+// panels of a layout, each panel keeps its own crop, zoom, pan, flip
+// and ink, the caption and dressing are editable, the title drags, and
+// export writes a real PNG at 1080 x 1080, 1080 x 1350 or 1920 x 1080.
+// Everything runs locally; no photo ever leaves the machine.
 
-import { LAYOUTS, GRADES, renderCover } from './poster.js';
-import { loadSamples } from './samples.js';
-import { clamp } from './noise.js';
+import { GRADE_ORDER, GRADES, LAYOUT_ORDER, LAYOUTS, composeCover, panelsFor, polygonBounds } from './poster.js';
+import { loadAllSampleScenes } from './samples.js';
 
-const SIZES = [
-  { id: 'sq', label: '1080 × 1080', w: 1080, h: 1080 },
-  { id: 'portrait', label: '1080 × 1350', w: 1080, h: 1350 },
-  { id: 'wide', label: '1920 × 1080', w: 1920, h: 1080 },
-];
-
-const state = {
-  sizeId: 'portrait',
-  layoutId: 'comic-hero-plus',
-  gradeId: 'sunset',
-  title: 'VICE COAST',
-  subtitle: 'where the neon meets the tide',
-  tagline: 'Every sunset here has a price — and a witness',
-  quote: 'The loudest, sunniest cover maker on the coast',
-  quoteSource: 'The Boardwalk Gazette',
-  badge1: 'COAST', badge2: 'CERTIFIED',
-  titlePos: 'middle', titleDy: 0,
-  ink: 0.55, inkAll: 1, grain: 0.45, vignette: 0.5,
-  panels: [],
+const SIZES = {
+  '1920x1080': [1920, 1080],
+  '1080x1350': [1080, 1350],
+  '1080x1080': [1080, 1080],
 };
 
-let sources = [];        // { name, img } — samples and the person's photos
-let panelState = [];     // per panel: { src, zoom, panX, panY, flip, ink }
-let selectedPanel = 0;
+const state = {
+  photos: [],
+  selectedPhoto: 0,
+  panelPhotos: [],
+  panelViews: [],
+  panelInk: [],
+  selectedPanel: 0,
+  layout: 'comicA',
+  grade: 'sunset',
+  size: '1080x1350',
+  ink: 0.65,
+  effect: 0.8,
+  grain: 0.5,
+  vignette: 0.45,
+  title: 'NEON HARBOR',
+  subtitle: 'Salt & Sirens',
+  tagline: 'One shoreline · No curfew · All summer',
+  quote: 'A postcard that bites back',
+  quoteSource: 'The Harbor Review',
+  sealLine1: 'Handmade',
+  sealLine2: 'Cover art',
+  titleY: 0.52,
+};
 
-const $ = id => document.getElementById(id);
+const $ = (id) => document.getElementById(id);
 const preview = $('preview');
 const pctx = preview.getContext('2d');
 
-function currentSize() { return SIZES.find(s => s.id === state.sizeId); }
-function currentLayout() { return LAYOUTS.find(l => l.id === state.layoutId); }
-
-function defaultPanel(src) { return { src, zoom: 1, panX: 0, panY: 0, flip: false, ink: state.ink }; }
-
-function ensurePanels() {
-  const n = currentLayout().panels.length;
-  while (panelState.length < n) panelState.push(defaultPanel(panelState.length % Math.max(1, sources.length)));
-  panelState = panelState.slice(0, Math.max(n, panelState.length));
-  panelState.length = n;
-  if (selectedPanel >= n) selectedPanel = 0;
+function currentPanels() {
+  const [w, h] = SIZES[state.size];
+  return panelsFor(state.layout, w / h);
 }
 
-function spread() {
-  ensurePanels();
-  // portrait scene first (the hero), then the rest in a lively order
-  const order = [0, 2, 3, 1, 4, 5];
-  panelState = panelState.map((p, i) => ({ ...defaultPanel(order[i % order.length] % sources.length), ink: p.ink }));
-  selectedPanel = 0;
-  syncPanelControls(); drawPanelStrip(); render();
+function ensurePanelSlots() {
+  const count = currentPanels().length;
+  while (state.panelViews.length < count) state.panelViews.push({ zoom: 1, panX: 0, panY: 0, flip: false });
+  while (state.panelInk.length < count) state.panelInk.push(null);
+  if (state.panelPhotos.length === 0 && state.photos.length > 0) spreadPhotos();
 }
 
-function buildRenderState() {
-  ensurePanels();
-  return {
-    ...state,
-    panels: panelState.map(p => {
-      const s = sources[p.src % sources.length];
-      return { img: s ? s.img : null, zoom: p.zoom, panX: p.panX, panY: p.panY, flip: p.flip, ink: p.ink };
-    }),
-  };
+function spreadPhotos() {
+  const panels = currentPanels();
+  state.panelPhotos = panels.map((_, i) => state.photos[i % state.photos.length]);
+  state.selectedPanel = 0;
+  renderPanelStrip();
 }
 
-let renderQueued = false;
-function render() {
-  if (renderQueued) return;
-  renderQueued = true;
-  requestAnimationFrame(() => {
-    renderQueued = false;
-    const { w, h } = currentSize();
-    if (preview.width !== w) preview.width = w;
-    if (preview.height !== h) preview.height = h;
-    renderCover(pctx, w, h, buildRenderState());
+function renderThumbs() {
+  const grid = $('thumbGrid');
+  grid.innerHTML = '';
+  state.photos.forEach((photo, i) => {
+    const thumb = photo.canvas || photo.img;
+    const el = document.createElement('canvas');
+    el.width = 96;
+    el.height = 72;
+    el.getContext('2d').drawImage(thumb, 0, 0, 96, 72);
+    el.title = photo.name;
+    if (i === state.selectedPhoto) el.className = 'picked';
+    el.addEventListener('click', () => {
+      state.selectedPhoto = i;
+      renderThumbs();
+    });
+    el.draggable = true;
+    el.addEventListener('dragstart', (ev) => ev.dataTransfer.setData('text/plain', String(i)));
+    grid.appendChild(el);
   });
+  $('photoCount').textContent = `${state.photos.length} loaded`;
 }
 
-// ---- sources: samples and user photos ---------------------------------------
-function addSamples() {
-  const samples = loadSamples();
-  for (const s of samples) {
-    if (!sources.some(x => x.name === s.name)) sources.push({ name: s.name, img: s.canvas });
+function renderPanelStrip() {
+  const strip = $('panelStrip');
+  strip.innerHTML = '';
+  currentPanels().forEach((_, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = String(i + 1);
+    if (i === state.selectedPanel) btn.className = 'active';
+    btn.addEventListener('click', () => selectPanel(i));
+    strip.appendChild(btn);
+  });
+  $('panelLabel').textContent = `${state.selectedPanel + 1} of ${currentPanels().length}`;
+}
+
+function selectPanel(i) {
+  state.selectedPanel = i;
+  const view = state.panelViews[i] || { zoom: 1, panX: 0, panY: 0 };
+  $('panelZoom').value = view.zoom;
+  $('panelZoomVal').textContent = `${Number(view.zoom).toFixed(1)}×`;
+  $('panelPanX').value = view.panX;
+  $('panelPanY').value = view.panY;
+  const ink = state.panelInk[i] != null ? state.panelInk[i] : state.ink;
+  $('panelInk').value = ink;
+  $('panelInkVal').textContent = Number(ink).toFixed(2);
+  renderPanelStrip();
+}
+
+function renderLayoutGrid() {
+  const grid = $('layoutGrid');
+  grid.innerHTML = '';
+  for (const id of LAYOUT_ORDER) {
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = `layout-cell${id === state.layout ? ' active' : ''}`;
+    const map = document.createElement('canvas');
+    map.width = 84;
+    map.height = 40;
+    const mctx = map.getContext('2d');
+    mctx.fillStyle = '#160a24';
+    mctx.fillRect(0, 0, 84, 40);
+    const panels = LAYOUTS[id].panels();
+    panels.forEach((poly, i) => {
+      mctx.beginPath();
+      poly.forEach(([x, y], j) => {
+        if (j === 0) mctx.moveTo(x * 84, y * 40);
+        else mctx.lineTo(x * 84, y * 40);
+      });
+      mctx.closePath();
+      mctx.fillStyle = `hsl(${280 + i * 24}, 65%, ${38 + i * 5}%)`;
+      mctx.fill();
+      mctx.strokeStyle = '#f5efe2';
+      mctx.lineWidth = 1;
+      mctx.stroke();
+    });
+    cell.appendChild(map);
+    const label = document.createElement('span');
+    label.textContent = LAYOUTS[id].name;
+    cell.appendChild(label);
+    cell.addEventListener('click', () => {
+      state.layout = id;
+      ensurePanelSlots();
+      if (state.photos.length) spreadPhotos();
+      renderLayoutGrid();
+      draw();
+    });
+    grid.appendChild(cell);
   }
 }
 
-function addPhotoFile(file) {
-  return new Promise((resolve) => {
+function renderGradeGrid() {
+  const grid = $('gradeGrid');
+  grid.innerHTML = '';
+  for (const id of GRADE_ORDER) {
+    const cell = document.createElement('button');
+    cell.type = 'button';
+    cell.className = `grade-cell${id === state.grade ? ' active' : ''}`;
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.style.background = `linear-gradient(90deg, ${GRADES[id].ramp.join(', ')})`;
+    cell.appendChild(bar);
+    cell.appendChild(document.createTextNode(GRADES[id].name));
+    cell.addEventListener('click', () => {
+      state.grade = id;
+      renderGradeGrid();
+      draw();
+    });
+    grid.appendChild(cell);
+  }
+}
+
+// The effect-strength slider scales the poster ink the composer sees,
+// so the finish controls read as one family: ink sets the look, effect
+// strength sets how hard it is applied.
+function effectiveState() {
+  return { ...state, ink: state.ink * (0.3 + 0.7 * state.effect) };
+}
+
+let drawQueued = false;
+function draw() {
+  if (drawQueued) return;
+  drawQueued = true;
+  requestAnimationFrame(() => {
+    drawQueued = false;
+    ensurePanelSlots();
+    const [w, h] = SIZES[state.size];
+    const scale = Math.min(1, 880 / w, 1080 / h);
+    const pw = Math.round(w * scale);
+    const ph = Math.round(h * scale);
+    if (preview.width !== pw || preview.height !== ph) {
+      preview.width = pw;
+      preview.height = ph;
+    }
+    const cover = composeCover(pw, ph, effectiveState());
+    pctx.clearRect(0, 0, pw, ph);
+    pctx.drawImage(cover, 0, 0);
+  });
+}
+
+function slug(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'cover';
+}
+
+function saveBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+async function exportSize(sizeKey) {
+  const [w, h] = SIZES[sizeKey];
+  const cover = composeCover(w, h, effectiveState());
+  const blob = await new Promise((resolve) => cover.toBlob(resolve, 'image/png'));
+  const name = `${slug(state.title)}-${w}x${h}.png`;
+  saveBlob(blob, name);
+  return name;
+}
+
+async function exportAllSizes() {
+  const saved = [];
+  for (const key of Object.keys(SIZES)) saved.push(await exportSize(key));
+  $('savedNote').textContent = `Saved ${saved.join(' · ')}`;
+}
+
+function addPhotoFiles(files) {
+  let pending = files.length;
+  for (const file of files) {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      // sensible automatic framing is handled by cover-fit in the renderer;
-      // portrait photos get a touch more zoom so faces fill their panel
-      sources.push({ name: file.name.replace(/\.[^.]+$/, ''), img });
-      resolve();
+      state.photos.push({ id: `photo-${Date.now()}-${state.photos.length}`, name: file.name, img });
+      pending -= 1;
+      if (pending === 0) {
+        spreadPhotos();
+        renderThumbs();
+        draw();
+      }
     };
-    img.onerror = () => resolve();
     img.src = url;
-  });
-}
-
-// ---- controls -----------------------------------------------------------------
-function buildSizeTabs() {
-  const box = $('sizeTabs');
-  box.innerHTML = '';
-  for (const s of SIZES) {
-    const b = document.createElement('button');
-    b.textContent = s.label;
-    b.className = 'tab' + (s.id === state.sizeId ? ' on' : '');
-    b.onclick = () => { state.sizeId = s.id; buildSizeTabs(); render(); };
-    box.appendChild(b);
   }
 }
 
-function buildLayoutThumbs() {
-  const box = $('layoutThumbs');
-  box.innerHTML = '';
-  for (const layout of LAYOUTS) {
-    const c = document.createElement('canvas');
-    c.width = 72; c.height = 54;
-    const x = c.getContext('2d');
-    x.fillStyle = '#241a38'; x.fillRect(0, 0, 72, 54);
-    layout.panels.forEach((poly, i) => {
-      x.beginPath();
-      poly.forEach(([px, py], j) => { j ? x.lineTo(px * 72, py * 54) : x.moveTo(px * 72, py * 54); });
-      x.closePath();
-      x.fillStyle = `hsl(${(i * 47 + 300) % 360} 65% ${52 + (i % 3) * 8}%)`;
-      x.fill();
-      x.strokeStyle = '#fff6ec'; x.lineWidth = 1.4; x.stroke();
-    });
-    c.title = layout.name;
-    c.className = 'thumb' + (layout.id === state.layoutId ? ' on' : '');
-    c.onclick = () => { state.layoutId = layout.id; ensurePanels(); buildLayoutThumbs(); drawPanelStrip(); syncPanelControls(); render(); };
-    box.appendChild(c);
+function loadSamples() {
+  const samples = loadAllSampleScenes();
+  state.photos = samples.map((s) => ({ id: s.id, name: s.name, canvas: s.canvas }));
+  state.selectedPhoto = 0;
+  spreadPhotos();
+  renderThumbs();
+  draw();
+}
+
+// ---------- wiring ----------
+
+$('fileInput').addEventListener('change', (ev) => addPhotoFiles([...ev.target.files]));
+$('loadSamples').addEventListener('click', loadSamples);
+$('spreadPhotos').addEventListener('click', () => { spreadPhotos(); draw(); });
+$('onePhotoMode').addEventListener('click', () => {
+  const photo = state.photos[state.selectedPhoto];
+  if (!photo) return;
+  const panels = currentPanels();
+  state.panelPhotos = panels.map(() => photo);
+  // a different crop in each panel of the one photo
+  state.panelViews = panels.map((_, i) => ({
+    zoom: 1.15 + (i % 3) * 0.25,
+    panX: ((i * 37) % 10) / 10 - 0.5,
+    panY: ((i * 53) % 10) / 10 - 0.5,
+    flip: i % 4 === 3,
+  }));
+  selectPanel(0);
+  draw();
+});
+$('exportOne').addEventListener('click', async () => {
+  const name = await exportSize(state.size);
+  $('savedNote').textContent = `Saved ${name}`;
+});
+$('exportAll').addEventListener('click', exportAllSizes);
+$('exportAllTop').addEventListener('click', exportAllSizes);
+
+for (const tab of document.querySelectorAll('.size-tab')) {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.size-tab').forEach((t) => t.classList.remove('active'));
+    tab.classList.add('active');
+    state.size = tab.dataset.size;
+    ensurePanelSlots();
+    draw();
+  });
+}
+
+$('panelZoom').addEventListener('input', (ev) => {
+  state.panelViews[state.selectedPanel].zoom = Number(ev.target.value);
+  $('panelZoomVal').textContent = `${Number(ev.target.value).toFixed(1)}×`;
+  draw();
+});
+$('panelPanX').addEventListener('input', (ev) => { state.panelViews[state.selectedPanel].panX = Number(ev.target.value); draw(); });
+$('panelPanY').addEventListener('input', (ev) => { state.panelViews[state.selectedPanel].panY = Number(ev.target.value); draw(); });
+$('panelInk').addEventListener('input', (ev) => {
+  state.panelInk[state.selectedPanel] = Number(ev.target.value);
+  $('panelInkVal').textContent = Number(ev.target.value).toFixed(2);
+  draw();
+});
+$('panelUseSelected').addEventListener('click', () => {
+  const photo = state.photos[state.selectedPhoto];
+  if (!photo) return;
+  state.panelPhotos[state.selectedPanel] = photo;
+  draw();
+});
+$('panelFlip').addEventListener('click', () => {
+  const view = state.panelViews[state.selectedPanel];
+  view.flip = !view.flip;
+  draw();
+});
+$('panelCenter').addEventListener('click', () => {
+  state.panelViews[state.selectedPanel] = { zoom: 1, panX: 0, panY: 0, flip: false };
+  selectPanel(state.selectedPanel);
+  draw();
+});
+$('inkAll').addEventListener('input', (ev) => {
+  state.ink = Number(ev.target.value);
+  $('inkAllVal').textContent = state.ink.toFixed(2);
+  draw();
+});
+$('effectStrength').addEventListener('input', (ev) => { state.effect = Number(ev.target.value); draw(); });
+$('grainAmt').addEventListener('input', (ev) => { state.grain = Number(ev.target.value); draw(); });
+$('vignetteAmt').addEventListener('input', (ev) => { state.vignette = Number(ev.target.value); draw(); });
+
+const fieldMap = [
+  ['fldTitle', 'title'], ['fldSubtitle', 'subtitle'], ['fldTagline', 'tagline'],
+  ['fldQuote', 'quote'], ['fldQuoteSource', 'quoteSource'],
+  ['fldSeal1', 'sealLine1'], ['fldSeal2', 'sealLine2'],
+];
+for (const [id, key] of fieldMap) {
+  $(id).addEventListener('input', (ev) => { state[key] = ev.target.value; draw(); });
+}
+$('titlePos').addEventListener('change', (ev) => {
+  state.titleY = ev.target.value === 'top' ? 0.27 : ev.target.value === 'bottom' ? 0.74 : 0.52;
+  draw();
+});
+
+// drag on the preview: pan the panel under the pointer, or drag the
+// title when the press starts on the title band.
+let drag = null;
+function pointerPanel(ev) {
+  const rect = preview.getBoundingClientRect();
+  const nx = (ev.clientX - rect.left) / rect.width;
+  const ny = (ev.clientY - rect.top) / rect.height;
+  const panels = currentPanels();
+  for (let i = panels.length - 1; i >= 0; i -= 1) {
+    const b = polygonBounds(panels[i]);
+    if (nx >= b.x && nx <= b.x + b.w && ny >= b.y && ny <= b.y + b.h) return { index: i, nx, ny };
   }
+  return { index: 0, nx, ny };
 }
-
-function buildGradeBars() {
-  const box = $('gradeBars');
-  box.innerHTML = '';
-  for (const g of GRADES) {
-    const b = document.createElement('button');
-    b.className = 'grade' + (g.id === state.gradeId ? ' on' : '');
-    const stops = g.ramp.map(([at, col]) => `${col} ${Math.round(at * 100)}%`).join(',');
-    b.style.background = `linear-gradient(90deg,${stops})`;
-    b.innerHTML = `<span>${g.name}</span>`;
-    b.onclick = () => { state.gradeId = g.id; buildGradeBars(); render(); };
-    box.appendChild(b);
+preview.addEventListener('pointerdown', (ev) => {
+  const hit = pointerPanel(ev);
+  const onTitle = Math.abs(hit.ny - state.titleY) < 0.13;
+  drag = { ...hit, startX: ev.clientX, startY: ev.clientY, mode: onTitle ? 'title' : 'pan', view: { ...state.panelViews[hit.index] }, titleY: state.titleY };
+  selectPanel(hit.index);
+  preview.setPointerCapture(ev.pointerId);
+});
+preview.addEventListener('pointermove', (ev) => {
+  if (!drag) return;
+  const rect = preview.getBoundingClientRect();
+  const dx = (ev.clientX - drag.startX) / rect.width;
+  const dy = (ev.clientY - drag.startY) / rect.height;
+  if (drag.mode === 'title') {
+    state.titleY = Math.min(0.8, Math.max(0.18, drag.titleY + dy));
+  } else {
+    const view = state.panelViews[drag.index];
+    view.panX = Math.min(1, Math.max(-1, drag.view.panX + dx * 1.6));
+    view.panY = Math.min(1, Math.max(-1, drag.view.panY + dy * 1.6));
   }
-}
+  draw();
+});
+preview.addEventListener('pointerup', () => { drag = null; });
+preview.addEventListener('dblclick', (ev) => {
+  const hit = pointerPanel(ev);
+  state.panelViews[hit.index] = { zoom: 1, panX: 0, panY: 0, flip: false };
+  selectPanel(hit.index);
+  draw();
+});
+preview.addEventListener('wheel', (ev) => {
+  ev.preventDefault();
+  const hit = pointerPanel(ev);
+  const view = state.panelViews[hit.index];
+  view.zoom = Math.min(3, Math.max(1, view.zoom * (ev.deltaY < 0 ? 1.08 : 0.93)));
+  selectPanel(hit.index);
+  draw();
+}, { passive: false });
+preview.addEventListener('dragover', (ev) => ev.preventDefault());
+preview.addEventListener('drop', (ev) => {
+  ev.preventDefault();
+  const idx = Number(ev.dataTransfer.getData('text/plain'));
+  if (Number.isInteger(idx) && state.photos[idx]) {
+    const hit = pointerPanel(ev);
+    state.panelPhotos[hit.index] = state.photos[idx];
+    draw();
+  } else if (ev.dataTransfer.files.length) {
+    addPhotoFiles([...ev.dataTransfer.files]);
+  }
+});
 
-function drawPanelStrip() {
-  const box = $('panelStrip');
-  box.innerHTML = '';
-  panelState.forEach((p, i) => {
-    const s = sources[p.src % sources.length];
-    const wrap = document.createElement('button');
-    wrap.className = 'panelChip' + (i === selectedPanel ? ' on' : '');
-    const c = document.createElement('canvas');
-    c.width = 56; c.height = 56;
-    if (s) c.getContext('2d').drawImage(s.img, 0, 0, 56, 56);
-    const label = document.createElement('span');
-    label.textContent = `${i + 1} · ${s ? s.name : '—'}`;
-    wrap.appendChild(c); wrap.appendChild(label);
-    wrap.onclick = () => { selectedPanel = i; drawPanelStrip(); syncPanelControls(); };
-    box.appendChild(wrap);
-  });
-  const sel = $('panelSource');
-  sel.innerHTML = '';
-  sources.forEach((s, i) => {
-    const o = document.createElement('option');
-    o.value = i; o.textContent = s.name;
-    sel.appendChild(o);
-  });
-  if (panelState[selectedPanel]) sel.value = panelState[selectedPanel].src;
-}
+// ---------- screenshot modes (used by the maker's own shots.json) ----------
 
-function syncPanelControls() {
-  const p = panelState[selectedPanel];
-  if (!p) return;
-  $('panelZoom').value = p.zoom;
-  $('panelPanX').value = p.panX;
-  $('panelPanY').value = p.panY;
-  $('panelInk').value = p.ink;
-  $('panelTitle').textContent = `Panel ${selectedPanel + 1} of ${panelState.length}`;
-}
-
-function bindControls() {
-  $('fileInput').addEventListener('change', async (e) => {
-    for (const f of e.target.files) await addPhotoFile(f);
-    setStatus(`${sources.length} photos and scenes ready — pick a panel and place them.`);
-    spread();
-  });
-  $('loadSamples').onclick = () => { addSamples(); spread(); setStatus('All six sample scenes loaded and spread across the panels.'); };
-  $('spreadBtn').onclick = () => { spread(); setStatus('Photos and scenes dealt across the panels.'); };
-  $('onePhoto').addEventListener('change', (e) => {
-    if (!sources.length) return;
-    const src = panelState[selectedPanel] ? panelState[selectedPanel].src : 0;
-    panelState = panelState.map((p, i) => ({
-      src, zoom: 1 + (i % 4) * 0.22, panX: ((i % 3) - 1) * 0.4, panY: (((i + 1) % 3) - 1) * 0.35, flip: i % 2 === 1, ink: p.ink,
-    }));
-    drawPanelStrip(); syncPanelControls(); render();
-    setStatus(e.target.checked ? 'One photo, a different crop in every panel.' : 'Back to one scene per panel — press Spread.');
-    if (!e.target.checked) spread();
-  });
-  const text = (id, key) => $(id).addEventListener('input', (e) => { state[key] = e.target.value; render(); });
-  text('inTitle', 'title'); text('inSubtitle', 'subtitle'); text('inTagline', 'tagline');
-  text('inQuote', 'quote'); text('inQuoteSource', 'quoteSource');
-  text('inBadge1', 'badge1'); text('inBadge2', 'badge2');
-  $('titlePos').addEventListener('change', (e) => { state.titlePos = e.target.value; state.titleDy = 0; render(); });
-  const slider = (id, key, fmt) => $(id).addEventListener('input', (e) => {
-    state[key] = parseFloat(e.target.value);
-    if (fmt) $(id + 'Val').textContent = fmt(state[key]);
-    render();
-  });
-  // the all-panels Poster Ink slider scales every panel's own ink in the renderer
-  $('inkAll').addEventListener('input', (e) => {
-    state.inkAll = parseFloat(e.target.value) / 0.55;
-    state.ink = parseFloat(e.target.value);
-    $('inkAllVal').textContent = `${Math.round(state.ink * 100)}%`;
-    render();
-  });
-  slider('grain', 'grain', v => `${Math.round(v * 100)}%`);
-  slider('vignette', 'vignette', v => `${Math.round(v * 100)}%`);
-  const pslider = (id, key) => $(id).addEventListener('input', (e) => {
-    const p = panelState[selectedPanel]; if (!p) return;
-    p[key] = parseFloat(e.target.value); render();
-  });
-  pslider('panelZoom', 'zoom'); pslider('panelPanX', 'panX'); pslider('panelPanY', 'panY'); pslider('panelInk', 'ink');
-  $('panelFlip').onclick = () => { const p = panelState[selectedPanel]; if (p) { p.flip = !p.flip; render(); } };
-  $('panelSource').addEventListener('change', (e) => {
-    const p = panelState[selectedPanel]; if (!p) return;
-    p.src = parseInt(e.target.value, 10); drawPanelStrip(); render();
-  });
-  $('exportOne').onclick = () => exportPng(currentSize());
-  $('exportAll').onclick = async () => {
-    for (const s of SIZES) { await exportPng(s, true); await new Promise(r => setTimeout(r, 350)); }
-    setStatus('All three sizes saved: 1080 × 1080, 1080 × 1350 and 1920 × 1080.');
-  };
-  // drag the title block up or down the cover
-  let dragging = false, startY = 0, startDy = 0;
-  preview.addEventListener('pointerdown', (e) => {
-    const rect = preview.getBoundingClientRect();
-    const y = (e.clientY - rect.top) / rect.height;
-    const anchor = state.titlePos === 'top' ? 0.17 : state.titlePos === 'bottom' ? 0.8 : 0.5;
-    if (Math.abs(y - (anchor + state.titleDy)) < 0.14) { dragging = true; startY = y; startDy = state.titleDy; preview.setPointerCapture(e.pointerId); }
-  });
-  preview.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
-    const rect = preview.getBoundingClientRect();
-    const y = (e.clientY - rect.top) / rect.height;
-    state.titleDy = clamp(startDy + (y - startY), -0.3, 0.3);
-    render();
-  });
-  preview.addEventListener('pointerup', () => { dragging = false; });
-}
-
-function setStatus(msg) { $('status').textContent = msg; }
-
-async function exportPng(size, quiet) {
-  const off = document.createElement('canvas');
-  off.width = size.w; off.height = size.h;
-  renderCover(off.getContext('2d'), size.w, size.h, buildRenderState());
-  const blob = await new Promise(r => off.toBlob(r, 'image/png'));
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `vice-coast-cover-${size.w}x${size.h}.png`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-  if (!quiet) setStatus(`Saved vice-coast-cover-${size.w}x${size.h}.png — ready to post.`);
-  else setStatus(`Saved ${size.w} × ${size.h}…`);
+function applyShotMode() {
+  const params = new URLSearchParams(location.search);
+  const shot = params.get('shot');
+  if (!shot) return false;
+  if (params.get('layout')) state.layout = params.get('layout');
+  if (params.get('grade')) state.grade = params.get('grade');
+  if (params.get('size')) state.size = params.get('size');
+  if (params.get('title')) state.title = params.get('title');
+  if (params.get('subtitle')) state.subtitle = params.get('subtitle');
+  if (params.get('tagline')) state.tagline = params.get('tagline');
+  loadSamples();
+  if (params.get('shift')) {
+    const shift = Number(params.get('shift')) || 0;
+    if (shift > 0) {
+      // rotate the photo order before the spread, so a second exported
+      // cover shows a different scene mix rather than a repeat
+      state.photos = state.photos.slice(shift).concat(state.photos.slice(0, shift));
+      spreadPhotos();
+      renderThumbs();
+    }
+  }
+  if (shot === 'cover') {
+    document.body.classList.add('shot-mode');
+    const [w, h] = SIZES[state.size];
+    const scale = Math.min(1280 / Math.max(w, h), 1);
+    const cw = Math.round(w * scale);
+    const ch = Math.round(h * scale);
+    preview.width = cw;
+    preview.height = ch;
+    preview.style.maxHeight = 'none';
+    preview.style.maxWidth = 'none';
+    const cover = composeCover(cw, ch, effectiveState());
+    pctx.drawImage(cover, 0, 0);
+    document.title = 'cover-ready';
+    return true;
+  }
+  // editor shot: leave the configured editor on screen, with the size
+  // tabs and fields synced to the shot's parameters
+  document.querySelectorAll('.size-tab').forEach((t) => t.classList.toggle('active', t.dataset.size === state.size));
+  renderLayoutGrid();
+  renderGradeGrid();
+  draw();
+  document.title = 'editor-ready';
   return true;
 }
 
-// ---- screenshot / share mode ---------------------------------------------------
-function applyShotParams() {
-  const q = new URLSearchParams(location.search);
-  if (!q.has('shot')) return false;
-  if (q.get('size')) { const s = SIZES.find(x => `${x.w}x${x.h}` === q.get('size')); if (s) state.sizeId = s.id; }
-  if (q.get('layout') && LAYOUTS.some(l => l.id === q.get('layout'))) state.layoutId = q.get('layout');
-  if (q.get('grade') && GRADES.some(g => g.id === q.get('grade'))) state.gradeId = q.get('grade');
-  if (q.get('title')) state.title = q.get('title');
-  if (q.get('subtitle')) state.subtitle = q.get('subtitle');
-  if (q.get('titlepos')) state.titlePos = q.get('titlepos');
-  addSamples();
-  spread();
-  if (q.get('assign')) {
-    const ids = q.get('assign').split(',');
-    const samples = loadSamples();
-    panelState = panelState.map((p, i) => {
-      const idx = samples.findIndex(s => s.id === ids[i % ids.length]);
-      return { ...p, src: idx >= 0 ? idx : p.src };
-    });
-  }
-  if (q.get('shot') === 'cover') document.body.classList.add('shot-cover');
-  return true;
+renderLayoutGrid();
+renderGradeGrid();
+if (!applyShotMode()) {
+  loadSamples();
+  draw();
 }
-
-// ---- boot ------------------------------------------------------------------------
-addSamples();
-bindControls();
-buildSizeTabs();
-buildLayoutThumbs();
-buildGradeBars();
-const wasShot = applyShotParams();
-if (!wasShot) spread();
-else { drawPanelStrip(); syncPanelControls(); render(); }
-setStatus('Six sample scenes are loaded. Add your own photo, type a caption, export the PNG.');
-window.__viceCoastReady = true;
