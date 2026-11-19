@@ -1,54 +1,122 @@
-/* Vice Coast Cover Studio — dark editor chrome around a bright poster. */
+/* Vice Coast Cover Studio — dark editor chrome, pink/cyan Vice accents.
+   System fonts only; the app makes no network request at all. */
+:root {
+  --bg: #0d0716;
+  --panel: #1a0f2b;
+  --panel2: #221239;
+  --line: #3a2358;
+  --ink: #f4eefc;
+  --muted: #b9a6d6;
+  --pink: #ff2e88;
+  --cyan: #00e5ff;
+  --amber: #ffb02e;
+  --radius: 12px;
+}
 * { box-sizing: border-box; }
-html, body { margin: 0; min-height: 100%; background: #14101d; color: #f4eefc; font: 15px/1.45 system-ui, sans-serif; }
-.app { display: flex; gap: 28px; align-items: flex-start; justify-content: center; padding: 22px; }
-.controls { width: 348px; flex: none; display: flex; flex-direction: column; gap: 14px; }
-.controls header h1 {
-  margin: 0; font-size: 34px; letter-spacing: 2px; font-weight: 900;
-  background: linear-gradient(90deg, #ffe66d, #ff7a3d, #ff2e63);
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+header.top {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  padding: 16px 22px 10px;
+  border-bottom: 1px solid var(--line);
+}
+header.top h1 {
+  margin: 0;
+  font: 900 30px/1 "Arial Black", Impact, sans-serif;
+  letter-spacing: 1px;
+  background: linear-gradient(90deg, #ffb02e, #ff2e88 55%, #00e5ff);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.tagline { margin: 4px 0 0; color: #b9aecb; font-size: 13px; }
-fieldset { border: 1px solid #3a2f52; border-radius: 12px; padding: 12px; margin: 0; background: #1d1729; }
-legend { font-weight: 800; font-size: 13px; letter-spacing: 0.4px; color: #ffd166; padding: 0 6px; }
-label { display: flex; flex-direction: column; gap: 5px; font-weight: 600; font-size: 13px; }
-input[type=text], select {
-  font: inherit; padding: 8px 10px; border: 1px solid #4a3d68; border-radius: 8px;
-  background: #241d36; color: #f4eefc;
+header.top p { margin: 0; color: var(--muted); font-size: 13px; }
+header.top .offline {
+  margin-left: auto; font-size: 12px; color: var(--cyan);
+  border: 1px solid var(--cyan); border-radius: 999px; padding: 3px 10px;
 }
-input[type=range] { accent-color: #ff2e63; width: 100%; }
-.slider { flex-direction: row; align-items: center; gap: 8px; }
-.slider input { flex: 1; }
-.row { display: flex; gap: 10px; }
-.row > * { flex: 1; }
-.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
-button {
-  font: inherit; font-weight: 700; padding: 9px 12px; border: 0; border-radius: 8px;
-  background: #ff2e63; color: #fff; cursor: pointer;
+main { display: grid; grid-template-columns: 320px 1fr; gap: 18px; padding: 18px 22px 26px; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+aside.controls { display: flex; flex-direction: column; gap: 14px; }
+section.card {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px;
 }
-button:hover { filter: brightness(1.12); }
-button:active { transform: translateY(1px); }
-.seg { display: flex; gap: 6px; flex-wrap: wrap; }
-.seg button { background: #2c2340; color: #d9cdf0; padding: 8px 10px; font-size: 13px; }
-.seg button.on { background: #ff2e63; color: #fff; }
-.export-seg button { background: #0f766e; flex: 1; white-space: nowrap; }
-.export-seg button:hover { background: #14a08f; }
-.photo-row { display: flex; gap: 8px; }
-.file-btn {
-  flex: 1; text-align: center; padding: 9px 6px; border-radius: 8px; cursor: pointer;
-  background: #2c2340; color: #d9cdf0; font-size: 13px;
+section.card h2 {
+  margin: 0 0 10px; font-size: 12px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--amber);
 }
-.file-btn input { display: none; }
-.file-btn.loaded { background: #0f766e; color: #fff; }
-.hint { margin: 8px 0 0; color: #b9aecb; font-size: 12.5px; }
-.checks { display: flex; gap: 14px; flex-wrap: wrap; }
-.checks label { flex-direction: row; align-items: center; gap: 5px; font-weight: 500; }
-.stage { flex: 1; max-width: 760px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-#cover { width: min(72vh, 100%); aspect-ratio: 1 / 1; height: auto; border-radius: 6px; box-shadow: 0 18px 50px rgba(0,0,0,0.55); cursor: crosshair; background: #2b1838; }
-.stage-hint { margin: 0; color: #8f84a8; font-size: 12.5px; text-align: center; }
-/* Screenshot scenes: cover alone, full-bleed. */
-body.shot-cover .controls, body.shot-cover .stage-hint { display: none; }
-body.shot-cover { background: #000; }
-body.shot-cover .app { padding: 0; display: block; }
-body.shot-cover .stage { max-width: none; }
-body.shot-cover #cover { width: 100vw; height: 100vh; aspect-ratio: auto; border-radius: 0; box-shadow: none; }
+section.card h3 { margin: 12px 0 6px; font-size: 13px; color: var(--ink); }
+label.row { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 13px; }
+label.row span { flex: 0 0 92px; color: var(--muted); }
+label.row input[type="range"] { flex: 1; accent-color: var(--pink); }
+label.row output { flex: 0 0 44px; text-align: right; font-variant-numeric: tabular-nums; }
+label.row select, label.row input[type="text"] {
+  flex: 1; background: var(--panel2); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font: inherit;
+}
+input[type="text"].caption {
+  width: 100%; background: var(--panel2); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px;
+  font: 700 16px Arial, sans-serif;
+}
+.choices { display: flex; flex-wrap: wrap; gap: 7px; }
+button, .filebtn {
+  background: var(--panel2); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 9px;
+  padding: 8px 12px; font: 700 13px Arial, sans-serif; cursor: pointer;
+}
+button:hover, .filebtn:hover { border-color: var(--pink); }
+button[aria-pressed="true"] {
+  background: var(--pink); border-color: var(--pink); color: #fff;
+}
+button.primary {
+  background: linear-gradient(90deg, var(--pink), #ff7a3d);
+  border: none; color: #fff; padding: 12px 16px; font-size: 15px; width: 100%;
+}
+button.primary:hover { filter: brightness(1.1); }
+button.ghost { background: transparent; }
+.slot { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+.slot.active { border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan); }
+.slot .slothead { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.slot .slothead b { font-size: 13px; }
+.slot .slothead .thumb {
+  width: 44px; height: 44px; object-fit: cover; border-radius: 6px;
+  background: #12081f; border: 1px solid var(--line);
+}
+.slot .slothead small { color: var(--muted); }
+.slot .minirow { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+.slot .minirow button { padding: 6px 9px; font-size: 12px; }
+.stage { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.canvaswrap {
+  background: #000; border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 12px; display: flex; justify-content: center;
+}
+canvas#cover { max-width: 100%; height: auto; display: block; background: #160a26; }
+.hint { color: var(--muted); font-size: 13px; margin: 0; }
+.hint b { color: var(--ink); }
+.exportbar {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 12px 14px;
+}
+.exportbar select {
+  background: var(--panel2); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; padding: 9px 10px; font: inherit;
+}
+.exportbar .primary { width: auto; flex: 1; min-width: 180px; }
+#exportView[hidden] { display: none; }
+#exportView {
+  background: var(--panel); border: 1px solid var(--cyan);
+  border-radius: var(--radius); padding: 14px;
+}
+#exportView h2 { margin: 0 0 10px; font-size: 14px; color: var(--cyan); }
+#exportView img { max-width: 100%; height: auto; display: block; border-radius: 8px; }
+#exportView .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+#exportView a.download {
+  background: var(--cyan); color: #04222a; text-decoration: none;
+  border-radius: 9px; padding: 9px 14px; font-weight: 700;
+}
+footer { padding: 0 22px 22px; color: var(--muted); font-size: 12px; }
