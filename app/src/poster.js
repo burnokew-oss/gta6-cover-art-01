@@ -1,171 +1,164 @@
-// The poster pipeline: turns any panel photo into printed-poster art.
-// Every panel is posterized into a few flat colour levels, its brightness is
-// mapped through a colour gradient ramp, and a halftone dot pattern whose
-// dot size follows brightness is laid over it. Five grades, five ramps.
+// poster.js — the print pipeline of Vice Coast Cover Studio.
+// Each panel's picture is pushed through three print steps: its colours are
+// posterized into a few flat levels, its brightness is mapped through the
+// chosen grade's colour ramp, and a halftone dot screen is laid over it
+// whose dots grow in the shadows. Because the sample scenes and photos carry
+// real detail, the printed result keeps that detail — flat input would not.
 
-// Each grade: a ramp of [stop 0..1, [r, g, b]] and the dark ink used for
-// halftone dots and outlines.
+// Six grades, each a brightness ramp of [red, green, blue] stops plus the
+// halftone cell size the grade prints with. Comic Ink is a bold duotone.
 export const GRADES = {
   sunset: {
-    label: 'Sunset',
-    swatch: 'linear-gradient(90deg,#ff6a3d,#ff2e88,#ffc46b)',
-    ink: [26, 8, 34],
-    ramp: [
-      [0.00, [26, 8, 34]],
-      [0.25, [122, 28, 74]],
-      [0.50, [214, 74, 62]],
-      [0.75, [255, 150, 72]],
-      [1.00, [255, 226, 150]],
-    ],
+    name: 'Sunset',
+    css: 'linear-gradient(90deg,#1b1035,#7a1e5e,#e84e6d,#ff8c42,#ffd98a)',
+    halftoneCell: 5,
+    ramp: [[16, 10, 44], [74, 22, 84], [150, 34, 92], [214, 66, 96], [244, 110, 84], [255, 166, 88], [255, 214, 138]],
   },
   neon: {
-    label: 'Neon',
-    swatch: 'linear-gradient(90deg,#ff2e88,#7a2cff,#2ee6c8)',
-    ink: [12, 4, 36],
-    ramp: [
-      [0.00, [10, 4, 30]],
-      [0.30, [92, 16, 112]],
-      [0.55, [214, 32, 142]],
-      [0.80, [255, 90, 192]],
-      [1.00, [182, 242, 255]],
-    ],
+    name: 'Neon',
+    css: 'linear-gradient(90deg,#0b0620,#3b0f63,#a4138f,#ff2e88,#ff7ab8,#7df9ff)',
+    halftoneCell: 5,
+    ramp: [[10, 6, 32], [46, 14, 92], [110, 20, 130], [196, 24, 140], [255, 46, 136], [255, 122, 184], [160, 250, 255]],
   },
   golden: {
-    label: 'Golden',
-    swatch: 'linear-gradient(90deg,#7a4a10,#ff9a3d,#ffe9a8)',
-    ink: [28, 17, 5],
-    ramp: [
-      [0.00, [26, 15, 5]],
-      [0.30, [112, 68, 17]],
-      [0.55, [202, 132, 32]],
-      [0.80, [255, 192, 82]],
-      [1.00, [255, 242, 182]],
-    ],
+    name: 'Golden',
+    css: 'linear-gradient(90deg,#241126,#6e2a1e,#b3541e,#e88a2a,#ffc44d,#ffe9a8)',
+    halftoneCell: 5,
+    ramp: [[30, 14, 30], [92, 36, 30], [158, 74, 28], [214, 122, 36], [244, 168, 62], [255, 205, 92], [255, 238, 178]],
   },
   miami: {
-    label: 'Miami',
-    swatch: 'linear-gradient(90deg,#0a4a52,#2ee6c8,#ff5a8a)',
-    ink: [4, 26, 34],
-    ramp: [
-      [0.00, [4, 28, 36]],
-      [0.30, [16, 112, 122]],
-      [0.55, [42, 192, 172]],
-      [0.80, [255, 112, 152]],
-      [1.00, [255, 222, 202]],
-    ],
+    name: 'Miami',
+    css: 'linear-gradient(90deg,#07273d,#0e5e6e,#17a398,#f06ba8,#ff9ec4,#ffe3ee)',
+    halftoneCell: 5,
+    ramp: [[8, 34, 56], [12, 84, 104], [20, 150, 148], [64, 196, 178], [238, 110, 168], [255, 158, 196], [255, 232, 240]],
   },
   viceblue: {
-    label: 'Vice Blue',
-    swatch: 'linear-gradient(90deg,#0a1a4a,#2a6aff,#bfe6ff)',
-    ink: [4, 9, 32],
-    ramp: [
-      [0.00, [4, 9, 28]],
-      [0.30, [22, 52, 112]],
-      [0.55, [52, 112, 202]],
-      [0.80, [122, 192, 255]],
-      [1.00, [222, 242, 255]],
-    ],
+    name: 'Vice Blue',
+    css: 'linear-gradient(90deg,#060a24,#12275e,#1d4e9e,#2f8fd0,#7fd4f2,#eafcff)',
+    halftoneCell: 5,
+    ramp: [[6, 10, 36], [16, 34, 88], [28, 74, 150], [46, 130, 200], [110, 190, 235], [180, 230, 250], [240, 253, 255]],
+  },
+  comic: {
+    name: 'Comic Ink',
+    css: 'linear-gradient(90deg,#14100e 55%,#f24822 78%,#ffd23f)',
+    halftoneCell: 6,
+    ramp: [[16, 12, 12], [30, 20, 22], [120, 26, 20], [214, 62, 28], [242, 72, 34], [255, 178, 44], [255, 214, 74]],
   },
 };
 
-export const GRADE_IDS = Object.keys(GRADES);
+const lutCache = new Map();
 
-// Interpolate a colour along a grade's ramp.
-export function rampColour(grade, t) {
-  const stops = grade.ramp;
-  const clamped = Math.max(0, Math.min(1, t));
-  for (let i = 1; i < stops.length; i++) {
-    if (clamped <= stops[i][0]) {
-      const [t0, c0] = stops[i - 1];
-      const [t1, c1] = stops[i];
-      const f = (clamped - t0) / (t1 - t0 || 1);
-      return [
-        Math.round(c0[0] + (c1[0] - c0[0]) * f),
-        Math.round(c0[1] + (c1[1] - c0[1]) * f),
-        Math.round(c0[2] + (c1[2] - c0[2]) * f),
-      ];
-    }
+// Expand a grade's stops into a 256-entry lookup table, cached per grade.
+export function rampLut(gradeId) {
+  if (lutCache.has(gradeId)) return lutCache.get(gradeId);
+  const stops = (GRADES[gradeId] || GRADES.sunset).ramp;
+  const lut = new Uint8Array(256 * 3);
+  for (let i = 0; i < 256; i++) {
+    const t = (i / 255) * (stops.length - 1);
+    const lo = Math.floor(t);
+    const hi = Math.min(stops.length - 1, lo + 1);
+    const f = t - lo;
+    for (let c = 0; c < 3; c++) lut[i * 3 + c] = Math.round(stops[lo][c] + (stops[hi][c] - stops[lo][c]) * f);
   }
-  return stops[stops.length - 1][1].slice();
+  lutCache.set(gradeId, lut);
+  return lut;
 }
 
-// Draw an image (or canvas) into a panel-sized canvas with a cover-fit
-// crop, then posterize it. crop: { zoom, panX, panY, flip } with pan in
-// [-1, 1]. ink 0 leaves the photo untouched; ink 1 is full poster art.
-export function posterizePanel(source, width, height, gradeId, ink, crop) {
-  const grade = GRADES[gradeId] ?? GRADES.sunset;
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(2, Math.round(width));
-  canvas.height = Math.max(2, Math.round(height));
-  const ctx = canvas.getContext('2d');
-  const iw = source.naturalWidth || source.width;
-  const ih = source.naturalHeight || source.height;
-  const zoom = crop?.zoom ?? 1;
-  const panX = crop?.panX ?? 0;
-  const panY = crop?.panY ?? 0;
-  const flip = crop?.flip ?? false;
-  const scale = Math.max(canvas.width / iw, canvas.height / ih) * zoom;
-  const dw = iw * scale;
-  const dh = ih * scale;
-  const dx = (canvas.width - dw) / 2 + (panX * (dw - canvas.width)) / 2;
-  const dy = (canvas.height - dh) / 2 + (panY * (dh - canvas.height)) / 2;
+// Draw a source (image or canvas) into a target box with cover-fit maths:
+// the picture fills the box, zoom scales it, ox/oy pan it inside the box and
+// flip mirrors it. Portrait and landscape sources both frame sensibly
+// because the fit always covers the shorter fit dimension first.
+export function drawCoverFit(ctx, source, x, y, w, h, view) {
+  const sw = source.naturalWidth || source.width;
+  const sh = source.naturalHeight || source.height;
+  if (!sw || !sh) return;
+  const zoom = Math.max(1, view.zoom || 1);
+  const scale = Math.max(w / sw, h / sh) * zoom;
+  const dw = sw * scale;
+  const dh = sh * scale;
+  const roomX = Math.max(0, dw - w);
+  const roomY = Math.max(0, dh - h);
+  // Centred by default; ox/oy slide the picture inside its overflow room.
+  const px = x + (w - dw) / 2 - (view.ox || 0) * roomX * 0.5;
+  const py = y + (h - dh) / 2 - (view.oy || 0) * roomY * 0.5;
   ctx.save();
-  if (flip) {
-    ctx.translate(canvas.width, 0);
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  if (view.flip) {
+    ctx.translate(px + dw, 0);
     ctx.scale(-1, 1);
+    ctx.drawImage(source, 0, py, dw, dh);
+  } else {
+    ctx.drawImage(source, px, py, dw, dh);
   }
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(source, dx, dy, dw, dh);
   ctx.restore();
+}
 
-  if (ink <= 0.01) return canvas;
-
-  // Posterize + ramp, per pixel.
-  const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = image.data;
-  const levels = 5;
-  const flat = ink * 0.85; // how much of the flat poster level shows
-  const tint = ink * 0.8; // how much of the ramp colour shows
-  // A small lookup table keeps the per-pixel loop fast.
-  const table = new Uint8Array(256 * 3);
-  for (let v = 0; v < 256; v++) {
-    const lum = v / 255;
-    const stepped = (Math.floor(lum * levels) + 0.5) / levels;
-    const mixed = lum * (1 - flat) + stepped * flat;
-    const [r, g, b] = rampColour(grade, mixed);
-    table[v * 3] = r;
-    table[v * 3 + 1] = g;
-    table[v * 3 + 2] = b;
-  }
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i], g = data[i + 1], b = data[i + 2];
-    const lum = Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b);
-    const t = lum * 3;
-    data[i] = Math.round(r * (1 - tint) + table[t] * tint);
-    data[i + 1] = Math.round(g * (1 - tint) + table[t + 1] * tint);
-    data[i + 2] = Math.round(b * (1 - tint) + table[t + 2] * tint);
-  }
-  ctx.putImageData(image, 0, 0);
-
-  // Halftone dots: dot size follows brightness — big dots in the darks,
-  // tiny dots in the lights. Laid over the posterized panel, sampling the
-  // pixel data we already hold instead of re-reading the canvas per cell.
-  const cell = Math.max(4, Math.round(canvas.width / 150));
-  const [ir, ig, ib] = grade.ink;
-  const cw = canvas.width;
-  ctx.fillStyle = `rgb(${ir},${ig},${ib})`;
-  ctx.globalAlpha = 0.30 * ink + 0.10;
-  for (let y = 0; y < canvas.height; y += cell) {
-    for (let x = 0; x < canvas.width; x += cell) {
-      const p = (y * cw + x) * 4;
-      const lum = (0.2126 * data[p] + 0.7152 * data[p + 1] + 0.0722 * data[p + 2]) / 255;
-      const radius = (cell * 0.52 * (1 - lum)) * ink;
-      if (radius < 0.4) continue;
-      ctx.beginPath();
-      ctx.arc(x + cell / 2, y + cell / 2, radius, 0, Math.PI * 2);
-      ctx.fill();
+// Run one panel-sized canvas through the print pipeline in place.
+// ink is 0..1: higher ink posterizes harder, leans further into the ramp
+// and prints a stronger halftone screen.
+export function applyPosterInk(canvas, gradeId, ink) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+  if (!w || !h) return canvas;
+  const grade = GRADES[gradeId] || GRADES.sunset;
+  const lut = rampLut(gradeId);
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  const levels = Math.max(4, Math.round(10 - ink * 5)); // posterize steps
+  const step = 255 / (levels - 1);
+  const rampMix = 0.16 + ink * 0.5; // lean into the ramp, keep the photo's hues
+  const cell = grade.halftoneCell;
+  const dotGain = 0.16 + ink * 0.3; // halftone strength
+  for (let y = 0; y < h; y++) {
+    const cy = (y % cell) - cell / 2 + 0.5;
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      let r = d[i], g = d[i + 1], b = d[i + 2];
+      r = Math.round(r / step) * step; // posterize each channel flat
+      g = Math.round(g / step) * step;
+      b = Math.round(b / step) * step;
+      const lum = Math.max(0, Math.min(255, Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b)));
+      const lr = lut[lum * 3], lg = lut[lum * 3 + 1], lb = lut[lum * 3 + 2];
+      r += (lr - r) * rampMix;
+      g += (lg - g) * rampMix;
+      b += (lb - b) * rampMix;
+      // Halftone: inside a cell, pixels farther than the dot radius (which
+      // grows as the pixel darkens) are inked down toward the ramp shadow.
+      const cx = (x % cell) - cell / 2 + 0.5;
+      const dist = Math.sqrt(cx * cx + cy * cy);
+      const radius = (1 - lum / 255) * cell * 0.72;
+      if (dist > radius) {
+        const f = 1 - dotGain * Math.min(1, (dist - radius) / (cell * 0.5));
+        r *= f; g *= f; b *= f;
+      } else {
+        const f = 1 + dotGain * 0.35; // dot centres catch a little light
+        r = Math.min(255, r * f); g = Math.min(255, g * f); b = Math.min(255, b * f);
+      }
+      d[i] = r; d[i + 1] = g; d[i + 2] = b;
     }
   }
-  ctx.globalAlpha = 1;
+  ctx.putImageData(img, 0, 0);
   return canvas;
+}
+
+// A reusable fine-noise canvas for the cover-wide grain overlay.
+let grainTile = null;
+export function makeGrainTile() {
+  if (grainTile) return grainTile;
+  const c = document.createElement('canvas');
+  c.width = 140; c.height = 140;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(140, 140);
+  let a = 987654321;
+  for (let i = 0; i < img.data.length; i += 4) {
+    a = (Math.imul(a, 1103515245) + 12345) | 0;
+    const v = 108 + ((a >>> 9) % 120);
+    img.data[i] = v; img.data[i + 1] = v; img.data[i + 2] = v; img.data[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  grainTile = c;
+  return c;
 }

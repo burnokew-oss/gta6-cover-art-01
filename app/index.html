@@ -1,111 +1,120 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Vice Coast Cover Studio — GTA-style poster maker</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23ff2e88'/%3E%3Ctext x='16' y='22' font-family='Arial' font-size='15' font-weight='900' fill='white' text-anchor='middle'%3EVC%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="./style.css">
+<title>Vice Coast Cover Studio — GTA-style cover maker</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="topbar" id="topbar">
-  <div class="brand">
-    <span class="brand-mark" aria-hidden="true">VC</span>
+<header id="topbar">
+  <div id="brand">
+    <span id="brand-mark">VC</span>
     <div>
       <h1>Vice Coast Cover Studio</h1>
-      <p>Turn any photo into a multi-panel poster. Offline — your photos never leave this machine.</p>
+      <p>Turn a photo into multi-panel poster cover art — offline, on your machine.</p>
     </div>
   </div>
-  <button id="exportTop" class="btn btn-primary" type="button">Export PNG</button>
+  <ol id="steps">
+    <li><strong>1</strong> Add photos</li>
+    <li><strong>2</strong> Pick a size</li>
+    <li><strong>3</strong> Export PNG</li>
+  </ol>
 </header>
 
-<main class="studio">
-  <aside class="controls" id="controls" aria-label="Cover controls">
+<main id="workspace">
+  <aside id="controls">
+    <section class="card" id="photos-card">
+      <h2>Photos &amp; scenes</h2>
+      <label id="drop-label" for="photo-input">Add your photos</label>
+      <input type="file" id="photo-input" accept="image/*" multiple>
+      <div class="row">
+        <button type="button" id="load-samples">Load all samples</button>
+        <button type="button" id="spread">Spread across panels</button>
+      </div>
+      <div class="row">
+        <button type="button" id="one-photo">One photo, every panel</button>
+        <button type="button" id="clear-photos">Clear photos</button>
+      </div>
+      <p class="hint">Six built-in sample scenes are drawn by the app itself. Your photos are read locally and never uploaded.</p>
+      <div id="photo-list"></div>
+    </section>
 
-    <section class="group">
-      <h2>1 · Photos</h2>
-      <label class="file-label">Add photos
-        <input id="photoInput" type="file" accept="image/*" multiple>
+    <section class="card" id="layout-card">
+      <h2>Layout</h2>
+      <div id="layout-thumbs"></div>
+      <h2>Colour grade</h2>
+      <div id="grade-bars"></div>
+    </section>
+
+    <section class="card" id="words-card">
+      <h2>Lettering</h2>
+      <label>Title <input type="text" id="in-title" maxlength="26"></label>
+      <label>Script subtitle <input type="text" id="in-subtitle" maxlength="34"></label>
+      <label>Tagline <input type="text" id="in-tagline" maxlength="44"></label>
+      <label>Press quote <input type="text" id="in-quote" maxlength="60"></label>
+      <label>Quote source <input type="text" id="in-quote-by" maxlength="30"></label>
+      <div class="row">
+        <label class="grow">Seal line 1 <input type="text" id="in-seal-top" maxlength="10"></label>
+        <label class="grow">Seal line 2 <input type="text" id="in-seal-bottom" maxlength="10"></label>
+      </div>
+      <label>Title position
+        <select id="in-title-pos">
+          <option value="middle">Across the middle</option>
+          <option value="top">Top band</option>
+          <option value="bottom">Bottom band</option>
+        </select>
       </label>
+      <p class="hint">Tip: drag the title on the preview to nudge it up or down.</p>
+    </section>
+
+    <section class="card" id="panel-card">
+      <h2>Panels</h2>
+      <div id="panel-strip"></div>
+      <p class="hint" id="panel-hint">Select a panel, then frame its picture.</p>
+      <label>Panel picture
+        <select id="panel-source"></select>
+      </label>
+      <label>Zoom <input type="range" id="panel-zoom" min="1" max="3" step="0.01"></label>
+      <label>Pan across <input type="range" id="panel-ox" min="-1" max="1" step="0.01"></label>
+      <label>Pan down <input type="range" id="panel-oy" min="-1" max="1" step="0.01"></label>
+      <label>Poster Ink (this panel) <input type="range" id="panel-ink" min="0" max="1" step="0.01"></label>
       <div class="row">
-        <button id="autoFillBtn" class="btn" type="button">Auto-fill empty panels</button>
-        <button id="clearPhotosBtn" class="btn" type="button">Clear</button>
-      </div>
-      <label class="check"><input id="onePhotoMode" type="checkbox"> One photo, every panel — a different crop in each</label>
-      <div id="photoTray" class="tray" aria-label="Loaded photos"></div>
-    </section>
-
-    <section class="group">
-      <h2>2 · Sample scenes</h2>
-      <p class="note">Original scenes drawn by the app itself — no photo needed.</p>
-      <div class="samples" id="sampleButtons">
-        <button class="btn sample" type="button" data-scene="beach">Beach Sunset</button>
-        <button class="btn sample" type="button" data-scene="neon">Neon Street</button>
-        <button class="btn sample" type="button" data-scene="coast">Coastal Road</button>
-        <button class="btn sample" type="button" data-scene="skyline">Dusk Skyline</button>
+        <button type="button" id="panel-flip">Flip panel</button>
+        <button type="button" id="panel-reset">Reset framing</button>
       </div>
     </section>
 
-    <section class="group">
-      <h2>3 · Layout</h2>
-      <div class="choices" id="layoutChoices" role="group" aria-label="Layout"></div>
-    </section>
-
-    <section class="group">
-      <h2>4 · Colour grade</h2>
-      <div class="choices" id="gradeChoices" role="group" aria-label="Colour grade"></div>
-    </section>
-
-    <section class="group">
-      <h2>5 · Export size</h2>
-      <div class="choices" id="sizeChoices" role="group" aria-label="Export size"></div>
-    </section>
-
-    <section class="group">
-      <h2>6 · Caption</h2>
-      <label>Title <input id="titleInput" type="text" maxlength="24" value="VICE COAST"></label>
-      <label>Subtitle <input id="subtitleInput" type="text" maxlength="40" value="Sunset Heist"></label>
-      <label>Tagline <input id="taglineInput" type="text" maxlength="64" value="EIGHT PANELS · ONE CITY · NO WAY OUT"></label>
-      <label>Badge <input id="badgeInput" type="text" maxlength="12" value="★ NEW ★"></label>
-      <div class="row">
-        <button id="resetTitleBtn" class="btn" type="button">Title back to its band</button>
-      </div>
-      <p class="note">Drag the title on the cover to move it over the panels.</p>
-    </section>
-
-    <section class="group">
-      <h2>7 · Selected panel</h2>
-      <div class="row">
-        <button id="prevPanelBtn" class="btn" type="button">◀ Prev</button>
-        <span id="panelLabel" class="panel-label">Panel 1 of 7</span>
-        <button id="nextPanelBtn" class="btn" type="button">Next ▶</button>
-      </div>
-      <label>Zoom <input id="zoomSlider" type="range" min="1" max="3" step="0.01" value="1"></label>
-      <label>Pan sideways <input id="panXSlider" type="range" min="-1" max="1" step="0.01" value="0"></label>
-      <label>Pan up / down <input id="panYSlider" type="range" min="-1" max="1" step="0.01" value="0"></label>
-      <div class="row">
-        <button id="flipBtn" class="btn" type="button">Flip photo</button>
-        <button id="fillPanelBtn" class="btn" type="button">Fill from photos</button>
-      </div>
-      <label>Poster ink — this panel <input id="inkSlider" type="range" min="0" max="1" step="0.01" value="0.65"></label>
-      <label>Poster ink — all panels <input id="inkAllSlider" type="range" min="0" max="1" step="0.01" value="0.65"></label>
-      <p class="note">Click a panel on the cover to select it. Drag a panel to pan its photo, scroll on it to zoom.</p>
-    </section>
-
-    <section class="group">
-      <h2>8 · Export</h2>
-      <button id="exportBtn" class="btn btn-primary btn-wide" type="button">Export PNG</button>
-      <p id="status" class="status" role="status">Load a photo or pick a sample scene to begin.</p>
+    <section class="card" id="print-card">
+      <h2>Print effects</h2>
+      <label>Poster Ink (all panels) <input type="range" id="fx-ink" min="0" max="1" step="0.01"></label>
+      <label>Grain <input type="range" id="fx-grain" min="0" max="1" step="0.01"></label>
+      <label>Vignette <input type="range" id="fx-vignette" min="0" max="1" step="0.01"></label>
     </section>
   </aside>
 
-  <section class="stage" id="stage">
-    <canvas id="coverCanvas" width="720" height="720" aria-label="The cover preview"></canvas>
-    <p class="hint">Drag the title to move it · drag a photo to pan it · scroll on a panel to zoom · click a panel to edit it</p>
-    <p class="fineprint">All lettering, grades and sample scenes are original work drawn in your browser. No Rockstar Games logo, artwork or font is used. No network request is made.</p>
+  <section id="stage">
+    <div id="size-tabs" role="tablist">
+      <button type="button" data-size="1080x1080">Square · 1080 × 1080</button>
+      <button type="button" data-size="1080x1350">Portrait · 1080 × 1350</button>
+      <button type="button" data-size="1920x1080">Wide · 1920 × 1080</button>
+    </div>
+    <div id="canvas-wrap">
+      <canvas id="preview" width="864" height="1080"></canvas>
+    </div>
+    <div id="export-bar">
+      <button type="button" id="export-one" class="primary">Export PNG</button>
+      <button type="button" id="export-all">Export every size</button>
+      <span id="saved-note" aria-live="polite"></span>
+    </div>
   </section>
 </main>
 
-<script type="module" src="./src/main.js"></script>
+<footer id="colophon">
+  <p>An original studio tool: every scene, letter and seal is drawn by this app. Photos never leave this machine — the app makes no network request.</p>
+</footer>
+
+<script type="module" src="src/main.js"></script>
 </body>
 </html>
