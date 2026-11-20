@@ -8,46 +8,82 @@
 <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-<main class="studio">
-  <section class="controls" aria-label="Cover controls">
-    <h1>Marlin Coast<br>Cover Studio</h1>
-    <p class="lede">Your photo and a caption, made into a multi-panel coastal-noir cover. Everything stays on this machine.</p>
+<main class="app">
+  <section class="controls">
+    <p class="kicker">Marlin Coast Cover Studio</p>
+    <h1>Your photo.<br>Five faces.<br>One coastline.</h1>
+    <p class="lede">Drop in a photo, write a caption, and walk out with a
+    multi-panel Marlin Coast cover — bold lettering, a sunset-or-neon grade,
+    and a light poster finish that keeps faces photographic. Everything runs
+    on this machine; your photos never leave it.</p>
 
-    <h2>1 · Photo</h2>
-    <p class="hint">Pick a panel, then give it a photo of your own — or fill every panel with it.</p>
-    <div id="panelList" class="chip-row" role="group" aria-label="Panels"></div>
-    <label class="file-label">Photo for <span id="selectedPanelName">THE NIGHT DJ</span>
-      <input id="photoFile" type="file" accept="image/*">
+    <label class="field">Your photos
+      <input id="photos" type="file" accept="image/*" multiple>
+      <span class="hint">One photo fills the panel you pick below; several fill the panels in order.</span>
     </label>
-    <div class="button-row">
-      <button id="fillAllBtn" type="button">Fill every panel with it</button>
-      <button id="resetPanelBtn" type="button">Reset panel</button>
+
+    <label class="field">Caption
+      <input id="caption" type="text" maxlength="42" value="Sunset Heist">
+    </label>
+
+    <div class="row">
+      <label class="field">Layout
+        <select id="layout">
+          <option value="cast" selected>Cast Slant</option>
+          <option value="hero">Hero Car</option>
+          <option value="portrait">Portrait Cast</option>
+        </select>
+      </label>
+      <label class="field">Grade
+        <select id="grade">
+          <option value="sunset" selected>Sunset</option>
+          <option value="neon">Neon</option>
+          <option value="miami">Miami</option>
+        </select>
+      </label>
     </div>
-    <label>Crop zoom <input id="zoomRange" type="range" min="1" max="2.6" step="0.01" value="1"></label>
-    <label>Shift left / right <input id="xRange" type="range" min="-0.45" max="0.45" step="0.01" value="0"></label>
-    <label>Shift up / down <input id="yRange" type="range" min="-0.45" max="0.45" step="0.01" value="0"></label>
 
-    <h2>2 · Layout &amp; grade</h2>
-    <div id="layoutRow" class="chip-row" role="group" aria-label="Layouts"></div>
-    <div id="gradeRow" class="chip-row" role="group" aria-label="Grades"></div>
+    <div class="row">
+      <label class="field">Post size
+        <select id="size">
+          <option value="1080x1080">Square · 1080 × 1080</option>
+          <option value="1080x1350" selected>Portrait · 1080 × 1350</option>
+          <option value="1920x1080">Wide · 1920 × 1080</option>
+        </select>
+      </label>
+      <label class="field">Your photo goes to
+        <select id="target">
+          <option value="dj" selected>The Night DJ panel</option>
+          <option value="driver">The Getaway Driver panel</option>
+          <option value="queen">The Boardwalk Queen panel</option>
+          <option value="pilot">The Storm Pilot panel</option>
+          <option value="diver">The Pearl Diver panel</option>
+          <option value="car">The Marlin GT panel</option>
+          <option value="aerial">The aerial panel</option>
+        </select>
+      </label>
+    </div>
 
-    <h2>3 · Words</h2>
-    <label>Title <input id="titleInput" type="text" maxlength="24" value="MARLIN COAST"></label>
-    <label>Caption <input id="captionInput" type="text" maxlength="64" value="FIVE FACES · ONE COASTLINE · NO WAY BACK"></label>
-
-    <h2>4 · Export</h2>
-    <label>Post size
-      <select id="sizeSelect">
-        <option value="square">Square · 1080 × 1080</option>
-        <option value="portrait">Portrait · 1080 × 1350</option>
-        <option value="wide">Wide · 1920 × 1080</option>
-      </select>
+    <label class="field">Photo zoom
+      <input id="zoom" type="range" min="1" max="2.4" step="0.01" value="1">
     </label>
-    <button id="exportBtn" class="export" type="button">Export PNG</button>
-    <p id="statusLine" role="status"></p>
+    <div class="row">
+      <label class="field">Shift sideways
+        <input id="nudge-x" type="range" min="-0.4" max="0.4" step="0.01" value="0">
+      </label>
+      <label class="field">Shift up / down
+        <input id="nudge-y" type="range" min="-0.4" max="0.4" step="0.01" value="0">
+      </label>
+    </div>
+    <button id="reset-photo" type="button" class="ghost">Reset photo position</button>
+    <button id="export" type="button">Export PNG</button>
+    <p id="status" role="status"></p>
+    <p class="fine">Bundled sheet: five original cast photographs, the Marlin GT
+    convertible and an aerial of the coast — all made for this studio.
+    FIVE FACES · ONE COASTLINE · NO WAY BACK.</p>
   </section>
-  <section class="stage" aria-label="Cover preview">
-    <canvas id="coverCanvas" width="1080" height="1080"></canvas>
+  <section class="stage">
+    <canvas id="cover" width="1080" height="1350" aria-label="Your Marlin Coast cover"></canvas>
   </section>
 </main>
 <script type="module" src="./src/main.js"></script>

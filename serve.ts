@@ -1,19 +1,20 @@
-// A small static file server for trying the studio locally: `node serve.ts`
-// serves app/ at http://localhost:8080 (pass --port <n> for another port).
-// It maps the extensions an offline web app needs, keeps every request
-// inside app/, and does nothing else — a development convenience only.
+// A small static file server for trying the studio locally (Node 22, standard
+// library only). `node serve.ts` serves app/ at http://localhost:8080 and
+// `node serve.ts --port 8091` picks another port. It answers only with files
+// inside app/, sends the MIME types an offline web app needs, and is a local
+// convenience for development — not a server hardened for the open internet.
 import { createReadStream, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const appRoot = resolve(fileURLToPath(new URL('./app', import.meta.url)));
+const root = resolve(fileURLToPath(new URL('./app', import.meta.url)));
 const argv = process.argv.slice(2);
-const portFlag = argv.indexOf('--port');
-const wanted = portFlag === -1 ? 8080 : Number(argv[portFlag + 1]);
+const flagAt = argv.indexOf('--port');
+const wanted = flagAt === -1 ? 8080 : Number(argv[flagAt + 1]);
 const port = Number.isInteger(wanted) && wanted > 0 && wanted < 65536 ? wanted : 8080;
 
-const CONTENT_TYPES: Record<string, string> = {
+const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
@@ -26,13 +27,12 @@ const CONTENT_TYPES: Record<string, string> = {
   '.webp': 'image/webp',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
-  '.woff': 'font/woff',
   '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
   '.ttf': 'font/ttf',
   '.otf': 'font/otf',
-  '.wasm': 'application/wasm',
-  '.bin': 'application/octet-stream',
   '.txt': 'text/plain; charset=utf-8',
+  '.wasm': 'application/wasm',
 };
 
 createServer((request, response) => {
@@ -45,26 +45,26 @@ createServer((request, response) => {
     return;
   }
   if (pathname.endsWith('/')) pathname += 'index.html';
-  const target = resolve(join(appRoot, normalize(pathname)));
-  if (target !== appRoot && !target.startsWith(appRoot + sep)) {
+  const file = resolve(join(root, normalize(pathname)));
+  if (file !== root && !file.startsWith(root + sep)) {
     response.writeHead(403).end('forbidden');
     return;
   }
-  let length: number;
+  let size: number;
   try {
-    const info = statSync(target);
+    const info = statSync(file);
     if (!info.isFile()) throw new Error('not a file');
-    length = info.size;
+    size = info.size;
   } catch {
     response.writeHead(404).end('not found');
     return;
   }
   response.writeHead(200, {
-    'content-type': CONTENT_TYPES[extname(target).toLowerCase()] ?? 'application/octet-stream',
-    'content-length': length,
+    'content-type': TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream',
+    'content-length': size,
     'cache-control': 'no-store',
   });
-  createReadStream(target).pipe(response);
+  createReadStream(file).pipe(response);
 }).listen(port, '127.0.0.1', () => {
   console.log(`Marlin Coast Cover Studio is on http://localhost:${port}`);
 });

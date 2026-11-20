@@ -1,207 +1,130 @@
-// Marlin Coast Cover Studio — the editor.
+// Marlin Coast Cover Studio — the page wiring.
 //
-// The page wires the studio together: the bundled example photographs
-// load into their panels, the visitor swaps any panel for a photo of
-// their own, crops it with zoom and drag sliders (the crop stays centred
-// on the face-aware focus point), picks a layout and a grade, edits the
-// title and caption, and exports the cover as a PNG in the three post
-// sizes. Everything happens on this machine; no photo is ever uploaded.
-import {
-  ALL_PANELS,
-  CAST_MEMBERS,
-  GRADES,
-  LAYOUT_LABELS,
-  drawCoverArt,
-  freshStudioState,
-} from './cover.js';
-import { runShotScene } from './shots.js';
+// The studio opens with the bundled Marlin Coast photographs already on the
+// sheet, so the cover is alive at first paint. Dropping in your own photos
+// replaces panels in order from the panel you pick; the caption, layout,
+// grade, size and the photo's zoom and position are all live controls, and
+// Export renders the exact post size as a PNG. Everything happens on this
+// machine: photos are read as object URLs and never uploaded. A `?shot=`
+// query instead stages a fixed scene for the screenshots (./shots.js).
+import { CAST, CAR, AERIAL, drawCover } from './cover.js';
+import { runShot } from './shots.js';
 
-const EXPORT_SIZES = [
-  { id: 'square', label: 'Square · 1080 × 1080', w: 1080, h: 1080 },
-  { id: 'portrait', label: 'Portrait · 1080 × 1350', w: 1080, h: 1350 },
-  { id: 'wide', label: 'Wide · 1920 × 1080', w: 1920, h: 1080 },
-];
+export const PANELS = [...CAST, CAR, AERIAL];
+export const SIZES = {
+  '1080x1080': [1080, 1080],
+  '1080x1350': [1080, 1350],
+  '1920x1080': [1920, 1080],
+};
 
-const state = freshStudioState();
-let selectedPanelId = 'dj';
+const canvas = document.getElementById('cover');
+const els = {
+  photos: document.getElementById('photos'),
+  caption: document.getElementById('caption'),
+  layout: document.getElementById('layout'),
+  grade: document.getElementById('grade'),
+  size: document.getElementById('size'),
+  target: document.getElementById('target'),
+  zoom: document.getElementById('zoom'),
+  nudgeX: document.getElementById('nudge-x'),
+  nudgeY: document.getElementById('nudge-y'),
+  reset: document.getElementById('reset-photo'),
+  export: document.getElementById('export'),
+  status: document.getElementById('status'),
+};
 
-const canvas = document.getElementById('coverCanvas');
-const statusLine = document.getElementById('statusLine');
-const panelList = document.getElementById('panelList');
-const zoomRange = document.getElementById('zoomRange');
-const xRange = document.getElementById('xRange');
-const yRange = document.getElementById('yRange');
+export const state = {
+  layout: 'cast',
+  grade: 'sunset',
+  caption: 'Sunset Heist',
+  images: { user: null },
+  userKey: 'dj',
+  zoom: 1,
+  nudgeX: 0,
+  nudgeY: 0,
+};
+for (const meta of PANELS) state.images[meta.key] = null;
 
-function say(text) {
-  statusLine.textContent = text;
-}
-
-function redraw() {
-  drawCoverArt(canvas.getContext('2d'), canvas.width, canvas.height, state);
-}
-
-/** Loads an image from a URL or object URL, resolving once it can be drawn. */
-function loadImage(src) {
+/** Loads an image from a URL, resolving once it can be drawn. */
+export function loadImage(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = reject;
-    img.src = src;
+    img.src = url;
   });
 }
 
-/** Loads the seven bundled photographs into their panels, then repaints. */
-async function loadBundledPhotos() {
-  await Promise.all(ALL_PANELS.map(async (def) => {
-    try {
-      state.panels[def.id].img = await loadImage(def.asset);
-    } catch {
-      say(`Could not load ${def.asset}`);
-    }
+/** Loads every bundled photograph into the state; resolves when all are in. */
+export async function loadBundled() {
+  await Promise.all(PANELS.map(async (meta) => {
+    state.images[meta.key] = await loadImage(meta.file);
   }));
-  redraw();
 }
 
-function selectedPanel() {
-  return state.panels[selectedPanelId];
+export function redraw() {
+  const [w, h] = SIZES[els.size.value] || SIZES['1080x1350'];
+  if (canvas.width !== w) canvas.width = w;
+  if (canvas.height !== h) canvas.height = h;
+  state.layout = els.layout.value;
+  state.grade = els.grade.value;
+  state.caption = els.caption.value;
+  state.userKey = els.target.value;
+  state.zoom = Number(els.zoom.value);
+  state.nudgeX = Number(els.nudgeX.value);
+  state.nudgeY = Number(els.nudgeY.value);
+  drawCover(canvas, state);
 }
 
-function syncCropControls() {
-  const panel = selectedPanel();
-  zoomRange.value = String(panel.zoom);
-  xRange.value = String(panel.dx);
-  yRange.value = String(panel.dy);
-  document.getElementById('selectedPanelName').textContent = panel.def.name;
-  for (const btn of panelList.querySelectorAll('button')) {
-    btn.classList.toggle('active', btn.dataset.panel === selectedPanelId);
+async function onPhotos(event) {
+  const files = [...(event.target.files || [])];
+  if (!files.length) return;
+  const start = PANELS.findIndex((m) => m.key === els.target.value);
+  for (let i = 0; i < files.length; i++) {
+    const meta = PANELS[(start + i) % PANELS.length];
+    const img = await loadImage(URL.createObjectURL(files[i]));
+    state.images[meta.key] = img;
+    if (i === 0) {
+      state.images.user = img;
+      state.userKey = meta.key;
+      els.target.value = meta.key;
+    }
   }
+  els.status.textContent = files.length === 1
+    ? 'Your photo is on the cover. Nudge it, then export.'
+    : `${files.length} photos placed across the panels.`;
+  redraw();
 }
 
-function buildPanelList() {
-  for (const def of ALL_PANELS) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.dataset.panel = def.id;
-    btn.textContent = def.name.replace(/^THE /, '');
-    btn.addEventListener('click', () => {
-      selectedPanelId = def.id;
-      if (CAST_MEMBERS.some((c) => c.id === def.id)) state.heroId = def.id;
-      syncCropControls();
-      redraw();
-    });
-    panelList.appendChild(btn);
-  }
-}
-
-function buildChoiceRow(rowId, values, labels, current, onPick) {
-  const row = document.getElementById(rowId);
-  for (const value of values) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.textContent = labels[value];
-    btn.dataset.value = value;
-    if (value === current) btn.classList.add('active');
-    btn.addEventListener('click', () => {
-      onPick(value);
-      for (const b of row.querySelectorAll('button')) b.classList.toggle('active', b.dataset.value === value);
-      redraw();
-    });
-    row.appendChild(btn);
-  }
-}
-
-document.getElementById('photoFile').addEventListener('change', async (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
-  const panel = selectedPanel();
-  panel.img = await loadImage(URL.createObjectURL(file));
-  panel.focus = { x: 0.5, y: 0.38 };
-  panel.zoom = 1; panel.dx = 0; panel.dy = 0;
-  syncCropControls();
+function onExport() {
   redraw();
-  say(`${file.name} is in the ${panel.def.name} panel — it never left this machine.`);
-});
-
-document.getElementById('fillAllBtn').addEventListener('click', async () => {
-  const source = selectedPanel().img;
-  if (!source) return;
-  for (const def of ALL_PANELS) {
-    if (def.id === selectedPanelId) continue;
-    const panel = state.panels[def.id];
-    panel.img = source;
-    panel.focus = { x: 0.5, y: 0.38 };
-    panel.zoom = 1; panel.dx = 0; panel.dy = 0;
-  }
-  redraw();
-  say('Your photo now fills every panel. Pick a panel to fine-tune its crop.');
-});
-
-document.getElementById('resetPanelBtn').addEventListener('click', async () => {
-  const panel = selectedPanel();
-  panel.img = await loadImage(panel.def.asset);
-  panel.focus = { ...panel.def.focus };
-  panel.zoom = 1; panel.dx = 0; panel.dy = 0;
-  syncCropControls();
-  redraw();
-  say(`${panel.def.name} is back on its bundled photograph.`);
-});
-
-for (const [range, key] of [[zoomRange, 'zoom'], [xRange, 'dx'], [yRange, 'dy']]) {
-  range.addEventListener('input', () => {
-    selectedPanel()[key] = Number(range.value);
-    redraw();
-  });
-}
-
-document.getElementById('titleInput').addEventListener('input', (event) => {
-  state.title = event.target.value;
-  redraw();
-});
-document.getElementById('captionInput').addEventListener('input', (event) => {
-  state.caption = event.target.value;
-  redraw();
-});
-
-document.getElementById('exportBtn').addEventListener('click', () => {
-  const sizeId = document.getElementById('sizeSelect').value;
-  const size = EXPORT_SIZES.find((s) => s.id === sizeId) ?? EXPORT_SIZES[0];
-  const out = document.createElement('canvas');
-  out.width = size.w;
-  out.height = size.h;
-  drawCoverArt(out.getContext('2d'), size.w, size.h, state);
-  out.toBlob((blob) => {
+  canvas.toBlob((blob) => {
+    if (!blob) return;
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `marlin-coast-cover-${size.w}x${size.h}.png`;
+    a.download = `marlin-coast-cover-${canvas.width}x${canvas.height}.png`;
     a.click();
-    say(`Saved marlin-coast-cover-${size.w}x${size.h}.png`);
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    els.status.textContent = `Saved marlin-coast-cover-${canvas.width}x${canvas.height}.png`;
   }, 'image/png');
-});
+}
 
-buildPanelList();
-buildChoiceRow('layoutRow', Object.keys(LAYOUT_LABELS), LAYOUT_LABELS, state.layout, (v) => { state.layout = v; });
-buildChoiceRow('gradeRow', Object.keys(GRADES), Object.fromEntries(Object.entries(GRADES).map(([k, g]) => [k, g.label])), state.grade, (v) => { state.grade = v; });
-syncCropControls();
-redraw();
+els.photos.addEventListener('change', onPhotos);
+for (const el of [els.caption, els.layout, els.grade, els.size, els.target, els.zoom, els.nudgeX, els.nudgeY]) {
+  el.addEventListener('input', redraw);
+  el.addEventListener('change', redraw);
+}
+els.reset.addEventListener('click', () => {
+  els.zoom.value = '1';
+  els.nudgeX.value = '0';
+  els.nudgeY.value = '0';
+  redraw();
+});
+els.export.addEventListener('click', onExport);
 
 const query = new URLSearchParams(location.search);
-const shot = query.get('shot');
-if (shot) {
-  runShotScene(shot, query, async (layout, grade) => {
-    state.layout = layout;
-    state.grade = grade;
-    if (shot === 'cover') {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    }
-    await loadBundledPhotos();
-    for (const rowId of ['layoutRow', 'gradeRow']) {
-      const row = document.getElementById(rowId);
-      const current = rowId === 'layoutRow' ? state.layout : state.grade;
-      for (const b of row.querySelectorAll('button')) b.classList.toggle('active', b.dataset.value === current);
-    }
-    redraw();
-  });
+if (query.get('shot')) {
+  runShot(query, { state, els, canvas, loadBundled, redraw });
 } else {
-  loadBundledPhotos();
+  loadBundled().then(redraw).catch(() => redraw());
 }
