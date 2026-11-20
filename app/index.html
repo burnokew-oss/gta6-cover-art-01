@@ -3,106 +3,95 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Vice Coast Cover Studio — Neon Harbor cover maker</title>
+<title>Vice Coast Cover Studio</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="topbar">
-  <div class="brand">
-    <span class="brand-chip">VC</span>
-    <span class="brand-name">VICE COAST <em>COVER STUDIO</em></span>
-  </div>
+<header id="topbar">
+  <div class="brand"><span class="brand-mark">VC</span> Vice Coast Cover Studio</div>
   <ol class="steps">
     <li><b>1</b> Add photos</li>
     <li><b>2</b> Pick a size</li>
     <li><b>3</b> Export PNG</li>
   </ol>
-  <div class="top-actions">
-    <label class="btn btn-gold" for="fileInput">+ Add photos</label>
-    <button class="btn btn-pink" id="exportAllTop" type="button">Export all 3 sizes</button>
-  </div>
-  <input id="fileInput" type="file" accept="image/*" multiple hidden>
+  <div class="offline-note">Offline · photos never leave this machine</div>
 </header>
-
-<main class="workspace">
-  <aside class="rail rail-left">
+<main id="layout">
+  <aside id="controls">
     <section>
-      <div class="rail-head"><h2>Photos</h2><span id="photoCount">0 loaded</span></div>
-      <div class="drop-note">Drop photos here, or use <i>Add photos</i>. One photo can fill every panel with a different crop; several spread across the panels. Nothing leaves this machine.</div>
-      <div class="thumb-grid" id="thumbGrid"></div>
-      <button class="btn btn-wide" id="loadSamples" type="button">Load all samples</button>
-      <button class="btn btn-wide" id="spreadPhotos" type="button">Spread across panels</button>
-      <button class="btn btn-wide" id="onePhotoMode" type="button">Fill all panels from selected photo</button>
-    </section>
-    <section>
-      <div class="rail-head"><h2>Panel</h2><span id="panelLabel">1 of 5</span></div>
-      <div class="panel-strip" id="panelStrip"></div>
-      <label class="slider-row">Zoom <input id="panelZoom" type="range" min="1" max="3" step="0.01" value="1"><span id="panelZoomVal">1.0×</span></label>
-      <label class="slider-row">Pan X <input id="panelPanX" type="range" min="-1" max="1" step="0.01" value="0"><span></span></label>
-      <label class="slider-row">Pan Y <input id="panelPanY" type="range" min="-1" max="1" step="0.01" value="0"><span></span></label>
-      <label class="slider-row">Panel ink <input id="panelInk" type="range" min="0" max="1" step="0.01" value="0.65"><span id="panelInkVal">0.65</span></label>
-      <div class="btn-row">
-        <button class="btn" id="panelFlip" type="button">Flip panel</button>
-        <button class="btn" id="panelCenter" type="button">Auto centre crop</button>
+      <h2>Photos</h2>
+      <label class="drop" id="dropZone">Add photos<input id="fileInput" type="file" accept="image/*" multiple hidden></label>
+      <div class="row">
+        <button id="loadSamples" type="button">Load all samples</button>
+        <button id="spreadBtn" type="button">Spread across panels</button>
       </div>
-      <button class="btn btn-wide" id="panelUseSelected" type="button">Put selected photo in this panel</button>
-      <p class="hint">Drag a panel in the preview to pan it. Scroll over a panel to zoom. Double-click a panel to re-centre it. Drop a photo onto a panel to replace it.</p>
+      <div class="row">
+        <button id="onePhotoBtn" type="button">One photo, every panel</button>
+      </div>
+      <div id="photoTray" class="tray"></div>
     </section>
-  </aside>
-
-  <section class="stage">
-    <div class="size-tabs" id="sizeTabs" role="tablist">
-      <button type="button" data-size="1920x1080" class="size-tab">1920 × 1080 <small>Landscape</small></button>
-      <button type="button" data-size="1080x1350" class="size-tab active">1080 × 1350 <small>Portrait</small></button>
-      <button type="button" data-size="1080x1080" class="size-tab">1080 × 1080 <small>Square</small></button>
-    </div>
-    <div class="canvas-wrap" id="canvasWrap">
-      <canvas id="preview" width="864" height="1080"></canvas>
-    </div>
-    <div class="export-bar">
-      <button class="btn btn-gold" id="exportOne" type="button">Export PNG</button>
-      <button class="btn btn-pink" id="exportAll" type="button">Export all 3 sizes</button>
-      <span class="saved-note" id="savedNote" role="status"></span>
-    </div>
-  </section>
-
-  <aside class="rail rail-right">
     <section>
       <h2>Layout</h2>
-      <div class="layout-grid" id="layoutGrid"></div>
+      <div id="layoutThumbs" class="thumbs"></div>
     </section>
     <section>
-      <h2>Grade</h2>
-      <div class="grade-grid" id="gradeGrid"></div>
+      <h2>Colour grade</h2>
+      <div id="gradeBars" class="grades"></div>
     </section>
     <section>
-      <h2>Poster finish</h2>
-      <label class="slider-row">Poster ink (all) <input id="inkAll" type="range" min="0" max="1" step="0.01" value="0.65"><span id="inkAllVal">0.65</span></label>
-      <label class="slider-row">Effect strength <input id="effectStrength" type="range" min="0" max="1" step="0.01" value="0.8"><span></span></label>
-      <label class="slider-row">Grain <input id="grainAmt" type="range" min="0" max="1" step="0.01" value="0.5"><span></span></label>
-      <label class="slider-row">Vignette <input id="vignetteAmt" type="range" min="0" max="1" step="0.01" value="0.45"><span></span></label>
-    </section>
-    <section>
-      <h2>Caption</h2>
-      <label class="field">Title <input id="fldTitle" type="text" value="NEON HARBOR"></label>
-      <label class="field">Subtitle <input id="fldSubtitle" type="text" value="Salt &amp; Sirens"></label>
-      <label class="field">Tagline <input id="fldTagline" type="text" value="One shoreline · No curfew · All summer"></label>
-      <label class="field">Press quote <input id="fldQuote" type="text" value="A postcard that bites back"></label>
-      <label class="field">Quote source <input id="fldQuoteSource" type="text" value="The Harbor Review"></label>
-      <label class="field">Seal line 1 <input id="fldSeal1" type="text" value="Handmade"></label>
-      <label class="field">Seal line 2 <input id="fldSeal2" type="text" value="Cover art"></label>
-      <label class="field">Title position
-        <select id="titlePos">
+      <h2>Words</h2>
+      <label>Title <input id="titleInput" type="text" maxlength="18"></label>
+      <label>Script subtitle <input id="subtitleInput" type="text" maxlength="30"></label>
+      <label>Tagline <input id="taglineInput" type="text" maxlength="60"></label>
+      <label>Press quote <input id="quoteInput" type="text" maxlength="48"></label>
+      <label>Quote source <input id="quoteSourceInput" type="text" maxlength="30"></label>
+      <label>Seal line 1 <input id="sealAInput" type="text" maxlength="10"></label>
+      <label>Seal line 2 <input id="sealBInput" type="text" maxlength="10"></label>
+      <label>Badge <input id="badgeInput" type="text" maxlength="10"></label>
+      <label>Title position
+        <select id="titlePosSelect">
           <option value="top">Top</option>
-          <option value="middle" selected>Middle — over the art</option>
+          <option value="middle">Middle band</option>
           <option value="bottom">Bottom</option>
         </select>
       </label>
-      <p class="hint">The title also drags: pull it up or down on the preview.</p>
+    </section>
+    <section>
+      <h2>Poster finish</h2>
+      <label>Poster ink — all panels <input id="inkAll" type="range" min="0" max="100" value="38"></label>
+      <label>Grade strength <input id="gradeMix" type="range" min="0" max="100" value="55"></label>
+      <label>Halftone <input id="halftone" type="range" min="0" max="100" value="30"></label>
+      <label>Film grain <input id="grain" type="range" min="0" max="100" value="45"></label>
+      <label>Vignette <input id="vignette" type="range" min="0" max="100" value="40"></label>
+      <label>Bloom <input id="bloom" type="range" min="0" max="100" value="35"></label>
+    </section>
+    <section>
+      <h2>Selected panel</h2>
+      <div id="panelStrip" class="tray"></div>
+      <label>Panel zoom <input id="panelZoom" type="range" min="60" max="260" value="100"></label>
+      <label>Poster ink — this panel <input id="inkOne" type="range" min="0" max="100" value="38"></label>
+      <label>Character name tag <input id="tagInput" type="text" maxlength="26"></label>
+      <div class="row">
+        <button id="flipBtn" type="button">Flip photo</button>
+        <button id="resetCropBtn" type="button">Reset crop</button>
+      </div>
+      <p class="hint">Drag the cover to pan the selected panel's photo. Click a panel to select it, or press W to walk the panels.</p>
     </section>
   </aside>
+  <section id="stage">
+    <div id="sizeTabs" class="tabs">
+      <button type="button" data-size="1080x1080">1:1 · 1080 × 1080</button>
+      <button type="button" data-size="1080x1350">4:5 · 1080 × 1350</button>
+      <button type="button" data-size="1920x1080">16:9 · 1920 × 1080</button>
+    </div>
+    <canvas id="preview" width="880" height="880"></canvas>
+    <div class="row export-row">
+      <button id="exportBtn" type="button" class="primary">Export PNG</button>
+      <button id="exportAllBtn" type="button">Export all three sizes</button>
+      <span id="saveNote" role="status"></span>
+    </div>
+  </section>
 </main>
-
 <script type="module" src="src/main.js"></script>
 </body>
 </html>
