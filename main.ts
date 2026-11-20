@@ -1,16 +1,14 @@
-// Vice Coast Cover Studio — entry program for gta6-cover-art-01 (Node 22,
-// standard library only). The app itself is the static site in app/: a
-// multi-panel GTA-style cover maker that runs offline in a desktop
-// browser, turns any photo plus a caption into poster cover art and
-// exports PNGs at 1080 x 1080, 1080 x 1350 and 1920 x 1080.
-// This program hands the entry in: it copies app/ and screenshots/ to the
-// output directory and writes dossier.json with the vendored make.fun
-// library, byte for byte as the scorer rebuilds it.
-// Try the app locally with `node serve.ts`, then open
-// http://localhost:8080. Outside the grader, MAKEFUN_OUTPUT_DIR stands
-// in for /output:  mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
-// The program is deterministic: two runs over the same tree write the
-// same dossier bytes, which the gate requires.
+// Marlin Coast Cover Studio — gta6-cover-art-01 entry (Node 22, standard library only).
+//
+// The product is the static web app in app/: plain files a desktop browser
+// loads fully offline (index.html plus its ES modules and the bundled cast
+// photographs; no library, no network request). This program hands the entry
+// in: it copies app/ and screenshots/ into the output directory and writes
+// dossier.json there with the vendored make.fun library.
+//
+// Run it the way the grader does, or locally with an override:
+//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+// Try the app itself with `node serve.ts`, then http://localhost:8080.
 
 import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -27,9 +25,10 @@ if (existsSync(join(here, 'screenshots'))) {
   cpSync(join(here, 'screenshots'), join(out, 'screenshots'), { recursive: true });
 }
 
-// Caps mirrored from the gate so an oversized entry fails here first:
-// at most 4 screenshots of at most 256 KiB, at most 993 app entries and
-// 48 MiB of app files, no app path over 1000 bytes, dossier text capped.
+// The caps below mirror the scorer's gate, so an entry the scorer would
+// refuse is refused here first: at most 4 screenshots of at most 256 KiB
+// each, at most 993 app files totalling at most 48 MiB, no app path longer
+// than 1000 bytes, and dossier text capped at 160 KiB.
 writeFileSync(
   join(out, 'dossier.json'),
   buildDossier(out, {

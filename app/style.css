@@ -1,76 +1,23 @@
-/* Vice Coast Cover Studio — editor chrome. Deep plum, neon pink, warm gold. */
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
-body {
-  font-family: "Segoe UI", Arial, sans-serif;
-  background: #170826;
-  color: #f5e9f7;
-  min-height: 100vh;
-}
-#topbar {
-  display: flex; align-items: center; gap: 22px;
-  padding: 10px 18px;
-  background: linear-gradient(90deg, #2a0a4a, #57124f 55%, #2a0a4a);
-  border-bottom: 2px solid #ff2d95;
-}
-.brand { font-weight: 800; font-size: 19px; letter-spacing: 0.4px; }
-.brand-mark {
-  display: inline-block; background: #ffd166; color: #2a1450;
-  font-weight: 900; padding: 2px 7px; border-radius: 4px; margin-right: 6px;
-}
-.steps { display: flex; gap: 16px; list-style: none; margin: 0; padding: 0; font-size: 14px; }
-.steps b {
-  display: inline-block; width: 20px; height: 20px; line-height: 20px; text-align: center;
-  border-radius: 50%; background: #ff2d95; color: #fff; margin-right: 5px;
-}
-.offline-note { margin-left: auto; font-size: 12.5px; color: #e8b7d4; }
-#layout { display: flex; gap: 18px; padding: 16px 18px; align-items: flex-start; }
-#controls { width: 300px; flex: none; display: flex; flex-direction: column; gap: 14px; }
-#controls section {
-  background: #241038; border: 1px solid #4a2566; border-radius: 10px; padding: 12px 14px;
-}
-#controls h2 { margin: 0 0 9px; font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: #ffd166; }
-#controls label { display: block; font-size: 12.5px; color: #dcc8ec; margin: 7px 0; }
-#controls input[type="text"], #controls select {
-  width: 100%; margin-top: 3px; padding: 6px 8px; border-radius: 6px;
-  border: 1px solid #5b3577; background: #170826; color: #fdf6ec; font-size: 13.5px;
-}
-#controls input[type="range"] { width: 100%; accent-color: #ff2d95; }
-button {
-  background: #3a1a5e; color: #fdf6ec; border: 1px solid #6d4296; border-radius: 7px;
-  padding: 7px 10px; font-size: 13px; cursor: pointer;
-}
-button:hover { background: #4c2480; }
-button.primary { background: linear-gradient(90deg, #ff2d95, #ff8c42); border: none; font-weight: 800; padding: 10px 18px; }
-button.active { outline: 2px solid #ffd166; }
-button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid #57c8ff; outline-offset: 1px; }
-.row { display: flex; gap: 8px; flex-wrap: wrap; margin: 7px 0; }
-.drop {
-  display: block; text-align: center; padding: 12px; border: 1.5px dashed #ff2d95;
-  border-radius: 8px; color: #ffb9dc; cursor: pointer; font-size: 13.5px;
-}
-.tray { display: flex; gap: 6px; flex-wrap: wrap; min-height: 8px; }
-.tray .chip {
-  font-size: 11px; background: #170826; border: 1px solid #5b3577; border-radius: 6px;
-  padding: 5px 7px; cursor: pointer; max-width: 138px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.tray .chip.active { border-color: #ffd166; color: #ffd166; }
-.thumbs { display: flex; gap: 7px; flex-wrap: wrap; }
-.thumbs canvas { border: 2px solid #5b3577; border-radius: 5px; cursor: pointer; background: #170826; }
-.thumbs canvas.active { border-color: #ffd166; }
-.grades { display: flex; flex-direction: column; gap: 6px; }
-.grades button { height: 24px; border-radius: 6px; font-size: 12px; font-weight: 700; text-align: left; padding-left: 9px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.7); }
-#stage { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.tabs { display: flex; gap: 8px; }
-#preview {
-  max-width: 100%; height: auto; border-radius: 6px;
-  box-shadow: 0 14px 44px rgba(0,0,0,0.55); cursor: grab; touch-action: none;
-}
-.export-row { align-items: center; }
-#saveNote { font-size: 13px; color: #9fe8b7; }
-.hint { font-size: 12px; color: #bda6d4; margin: 6px 0 0; }
-body.shot { background: #000; }
-body.shot #topbar, body.shot #controls, body.shot .tabs, body.shot .export-row { display: none; }
-body.shot #layout { padding: 0; }
-body.shot #stage { width: 100%; }
-body.shot #preview { max-width: none; box-shadow: none; border-radius: 0; }
+html, body { margin: 0; min-height: 100%; background: #17101f; color: #f3ecf7; font: 15px/1.45 system-ui, sans-serif; }
+.app { display: flex; gap: 28px; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; box-sizing: border-box; }
+.controls { display: flex; flex-direction: column; gap: 16px; width: 320px; flex: none; }
+.controls h1 { margin: 0; font-size: 30px; line-height: 1.05; letter-spacing: 0.01em; }
+.lede { margin: 0; color: #c9b8d6; }
+.hint { margin: 0; font-size: 12.5px; color: #9d8cae; }
+.group { display: flex; flex-direction: column; gap: 7px; }
+.group-label, label { font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: #e8d9f2; }
+label { display: flex; flex-direction: column; gap: 7px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+button, select, input[type=text] { font: inherit; }
+button { font-weight: 700; padding: 9px 13px; border: 1px solid #4a3560; border-radius: 8px; background: #241733; color: #f3ecf7; cursor: pointer; }
+button:hover { border-color: #ff4f9a; }
+button.on { background: linear-gradient(120deg, #ff8a3a, #ff4f7b 55%, #8b3fd9); border-color: transparent; color: #fff; }
+button.ghost { align-self: flex-start; font-weight: 600; padding: 7px 11px; }
+select, input[type=text] { padding: 9px; border: 1px solid #4a3560; border-radius: 8px; background: #241733; color: #f3ecf7; flex: 1; min-width: 0; }
+.file-btn { position: relative; overflow: hidden; font-weight: 700; padding: 9px 13px; border: 1px solid #4a3560; border-radius: 8px; background: #241733; cursor: pointer; display: inline-flex; align-items: center; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+#status { margin: 0; min-height: 1.3em; color: #ffd98a; }
+canvas { width: min(1180px, calc(100vw - 400px)); height: auto; max-height: calc(100vh - 48px); object-fit: contain; box-shadow: 0 14px 44px rgba(0, 0, 0, 0.55); background: #22102e; }
+body.shot-cover .controls { display: none; }
+body.shot-cover .app { padding: 0; min-height: 100vh; }
+body.shot-cover canvas { width: 100vw; height: 100vh; max-height: none; box-shadow: none; }
