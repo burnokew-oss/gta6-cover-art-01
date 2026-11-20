@@ -4,65 +4,51 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Marlin Coast Cover Studio</title>
+<link rel="icon" href="data:,">
 <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-<main class="app">
-  <section class="controls">
+<main class="studio">
+  <section class="controls" aria-label="Cover controls">
     <h1>Marlin Coast<br>Cover Studio</h1>
-    <p class="lede">Your photos, cast into a multi-panel coastal cover. Pick a panel, drop in your own photograph, choose a layout and a grade, and export a share-ready PNG. Everything runs offline in your browser — photos never leave this machine.</p>
+    <p class="lede">Your photo and a caption, made into a multi-panel coastal-noir cover. Everything stays on this machine.</p>
 
-    <div class="group">
-      <span class="group-label">Layout</span>
-      <div class="row" id="layouts">
-        <button type="button" data-layout="slant" class="on">Cast Slant</button>
-        <button type="button" data-layout="hero">Hero Car</button>
-        <button type="button" data-layout="portrait">Portrait Cast</button>
-      </div>
-    </div>
-
-    <div class="group">
-      <span class="group-label">Grade</span>
-      <div class="row" id="grades">
-        <button type="button" data-grade="sunset" class="on">Sunset</button>
-        <button type="button" data-grade="neon">Neon</button>
-        <button type="button" data-grade="miami">Miami</button>
-      </div>
-    </div>
-
-    <label>Panel photo
-      <span class="row">
-        <select id="slot">
-          <option value="dj">THE NIGHT DJ</option>
-          <option value="driver">THE GETAWAY DRIVER</option>
-          <option value="queen">THE BOARDWALK QUEEN</option>
-          <option value="pilot">THE STORM PILOT</option>
-          <option value="diver">THE PEARL DIVER</option>
-          <option value="car">THE CONVERTIBLE</option>
-          <option value="aerial">THE COASTLINE</option>
-        </select>
-        <span class="file-btn">Replace<input id="photo" type="file" accept="image/*"></span>
-      </span>
+    <h2>1 · Photo</h2>
+    <p class="hint">Pick a panel, then give it a photo of your own — or fill every panel with it.</p>
+    <div id="panelList" class="chip-row" role="group" aria-label="Panels"></div>
+    <label class="file-label">Photo for <span id="selectedPanelName">THE NIGHT DJ</span>
+      <input id="photoFile" type="file" accept="image/*">
     </label>
-    <button id="reset" type="button" class="ghost">Restore bundled cast</button>
-
-    <label>Script line
-      <input id="caption" type="text" maxlength="60" value="where the tide keeps secrets">
-    </label>
-
-    <div class="group">
-      <span class="group-label">Export PNG</span>
-      <div class="row">
-        <button id="export-square" type="button">1080 × 1080</button>
-        <button id="export-portrait" type="button">1080 × 1350</button>
-        <button id="export-wide" type="button">1920 × 1080</button>
-      </div>
-      <p class="hint">Every layout exports at all three sizes; its native frame is Cast Slant 1920 × 1080, Hero Car 1080 × 1350, Portrait Cast 1080 × 1080.</p>
+    <div class="button-row">
+      <button id="fillAllBtn" type="button">Fill every panel with it</button>
+      <button id="resetPanelBtn" type="button">Reset panel</button>
     </div>
+    <label>Crop zoom <input id="zoomRange" type="range" min="1" max="2.6" step="0.01" value="1"></label>
+    <label>Shift left / right <input id="xRange" type="range" min="-0.45" max="0.45" step="0.01" value="0"></label>
+    <label>Shift up / down <input id="yRange" type="range" min="-0.45" max="0.45" step="0.01" value="0"></label>
 
-    <p id="status" role="status"></p>
+    <h2>2 · Layout &amp; grade</h2>
+    <div id="layoutRow" class="chip-row" role="group" aria-label="Layouts"></div>
+    <div id="gradeRow" class="chip-row" role="group" aria-label="Grades"></div>
+
+    <h2>3 · Words</h2>
+    <label>Title <input id="titleInput" type="text" maxlength="24" value="MARLIN COAST"></label>
+    <label>Caption <input id="captionInput" type="text" maxlength="64" value="FIVE FACES · ONE COASTLINE · NO WAY BACK"></label>
+
+    <h2>4 · Export</h2>
+    <label>Post size
+      <select id="sizeSelect">
+        <option value="square">Square · 1080 × 1080</option>
+        <option value="portrait">Portrait · 1080 × 1350</option>
+        <option value="wide">Wide · 1920 × 1080</option>
+      </select>
+    </label>
+    <button id="exportBtn" class="export" type="button">Export PNG</button>
+    <p id="statusLine" role="status"></p>
   </section>
-  <canvas id="cover" width="1920" height="1080" aria-label="The Marlin Coast cover"></canvas>
+  <section class="stage" aria-label="Cover preview">
+    <canvas id="coverCanvas" width="1080" height="1080"></canvas>
+  </section>
 </main>
 <script type="module" src="./src/main.js"></script>
 </body>

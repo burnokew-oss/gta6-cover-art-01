@@ -1,21 +1,19 @@
-// A small static file server for app/, for trying the studio locally:
-//   node serve.ts [--port 8080]
-// Node 22 standard library only. It serves files from app/ and nothing else:
-// paths are normalised and confined to that folder, unknown files get a 404,
-// and every response is marked no-store so edits show up on reload.
-
+// A small static file server for trying the studio locally: `node serve.ts`
+// serves app/ at http://localhost:8080 (pass --port <n> for another port).
+// It maps the extensions an offline web app needs, keeps every request
+// inside app/, and does nothing else — a development convenience only.
 import { createReadStream, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = resolve(fileURLToPath(new URL('./app', import.meta.url)));
-const args = process.argv.slice(2);
-const portAt = args.indexOf('--port');
-const wanted = portAt === -1 ? 8080 : Number(args[portAt + 1]);
+const appRoot = resolve(fileURLToPath(new URL('./app', import.meta.url)));
+const argv = process.argv.slice(2);
+const portFlag = argv.indexOf('--port');
+const wanted = portFlag === -1 ? 8080 : Number(argv[portFlag + 1]);
 const port = Number.isInteger(wanted) && wanted > 0 && wanted < 65536 ? wanted : 8080;
 
-const TYPES: Record<string, string> = {
+const CONTENT_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
@@ -28,48 +26,45 @@ const TYPES: Record<string, string> = {
   '.webp': 'image/webp',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
-  '.woff2': 'font/woff2',
   '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
   '.ttf': 'font/ttf',
   '.otf': 'font/otf',
-  '.bin': 'application/octet-stream',
   '.wasm': 'application/wasm',
-  '.wav': 'audio/wav',
-  '.mp3': 'audio/mpeg',
-  '.ogg': 'audio/ogg',
+  '.bin': 'application/octet-stream',
   '.txt': 'text/plain; charset=utf-8',
 };
 
-createServer((req, res) => {
-  const url = new URL(req.url ?? '/', 'http://localhost');
+createServer((request, response) => {
+  const url = new URL(request.url ?? '/', 'http://localhost');
   let pathname: string;
   try {
     pathname = decodeURIComponent(url.pathname);
   } catch {
-    res.writeHead(400).end('bad request');
+    response.writeHead(400).end('bad request');
     return;
   }
   if (pathname.endsWith('/')) pathname += 'index.html';
-  const file = resolve(join(root, normalize(pathname)));
-  if (file !== root && !file.startsWith(root + sep)) {
-    res.writeHead(403).end('forbidden');
+  const target = resolve(join(appRoot, normalize(pathname)));
+  if (target !== appRoot && !target.startsWith(appRoot + sep)) {
+    response.writeHead(403).end('forbidden');
     return;
   }
-  let size: number;
+  let length: number;
   try {
-    const info = statSync(file);
+    const info = statSync(target);
     if (!info.isFile()) throw new Error('not a file');
-    size = info.size;
+    length = info.size;
   } catch {
-    res.writeHead(404).end('not found');
+    response.writeHead(404).end('not found');
     return;
   }
-  res.writeHead(200, {
-    'content-type': TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream',
-    'content-length': size,
+  response.writeHead(200, {
+    'content-type': CONTENT_TYPES[extname(target).toLowerCase()] ?? 'application/octet-stream',
+    'content-length': length,
     'cache-control': 'no-store',
   });
-  createReadStream(file).pipe(res);
+  createReadStream(target).pipe(response);
 }).listen(port, '127.0.0.1', () => {
   console.log(`Marlin Coast Cover Studio is on http://localhost:${port}`);
 });

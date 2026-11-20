@@ -1,27 +1,11 @@
-// Fixed scenes for the entry's screenshots.
-//
-// ?shot=cover strips the page down to the cover alone, framed exactly like
-// the exported PNG. ?shot=editor shows the full studio with a chosen layout
-// and grade already dialled in. window.__shotReady flips once the cover has
-// been painted over two animation frames, so a screenshot never catches a
-// half-loaded photograph.
-
-export async function runShot(shot, query, state, loadBundled, redraw) {
+// Fixed scenes for the studio's screenshots. A `?shot=cover` page shows
+// only the cover, drawn at the window's own size; `?shot=editor` shows
+// the full studio. `layout` and `grade` pick the scene. The page sets
+// window.__shotReady once the bundled photographs are in and the cover
+// has been painted twice, so a screenshot never catches a half-load.
+export async function runShotScene(shot, query, applyScene) {
   if (shot === 'cover') document.body.classList.add('shot-cover');
-  if (query.get('layout')) {
-    state.layout = query.get('layout');
-    document.querySelectorAll('#layouts button').forEach((b) =>
-      b.classList.toggle('on', b.dataset.layout === state.layout));
-  }
-  if (query.get('grade')) {
-    state.grade = query.get('grade');
-    document.querySelectorAll('#grades button').forEach((b) =>
-      b.classList.toggle('on', b.dataset.grade === state.grade));
-  }
-  if (query.get('caption')) {
-    document.getElementById('caption').value = query.get('caption');
-  }
-  await loadBundled();
-  redraw();
+  if (shot === 'editor') document.body.classList.add('shot-editor');
+  await applyScene(query.get('layout') ?? 'slant', query.get('grade') ?? 'sunset');
   requestAnimationFrame(() => requestAnimationFrame(() => { window.__shotReady = true; }));
 }
