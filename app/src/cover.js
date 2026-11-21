@@ -1,58 +1,75 @@
-// Marlin Coast Cover Studio — the cover painter.
-//
-// Everything is drawn on a 2D canvas from photographs: the five bundled cast
-// portraits, the red convertible and the aerial coast shot, plus any photo the
-// reader drops in. The house style is a light poster finish over real
-// photography — a colour grade, a whisper of fine grain everywhere, and a
-// halftone dot screen on the title band only — so faces stay photographic
-// while the sheet still reads as a printed game cover: slanted multi-panel
-// layouts, a gradient MARLIN COAST masthead, slanted name tags sized to each
-// panel, a star quote, a circular seal, a barcode and a billing strip inside
-// a double frame.
+// Marlin Coast Cover Studio — cover renderer (round 12).
+// Draws the whole poster on a 2D canvas from bundled photographs: five
+// photographic cast panels, an aerial strip, a car panel and a dressed
+// title band. No network, no fonts fetched anywhere: system type only.
 
 export const CAST = [
-  { key: 'dj', label: 'THE NIGHT DJ', file: 'assets/cast-dj.jpg', focusX: 0.5, focusY: 0.3, hue: '#ff2e88' },
-  { key: 'driver', label: 'THE GETAWAY DRIVER', file: 'assets/cast-driver.jpg', focusX: 0.5, focusY: 0.3, hue: '#ffb02e' },
-  { key: 'queen', label: 'THE BOARDWALK QUEEN', file: 'assets/cast-queen.jpg', focusX: 0.5, focusY: 0.26, hue: '#ffe259' },
-  { key: 'pilot', label: 'THE STORM PILOT', file: 'assets/cast-pilot.jpg', focusX: 0.5, focusY: 0.3, hue: '#2ec5ff' },
-  { key: 'diver', label: 'THE PEARL DIVER', file: 'assets/cast-diver.jpg', focusX: 0.5, focusY: 0.3, hue: '#2effa8' },
+  { key: 'dj', label: 'THE NIGHT DJ', file: 'assets/cast-dj.jpg', fx: 0.5, fy: 0.34 },
+  { key: 'driver', label: 'THE GETAWAY DRIVER', file: 'assets/cast-driver.jpg', fx: 0.5, fy: 0.36 },
+  { key: 'queen', label: 'THE BOARDWALK QUEEN', file: 'assets/cast-queen.jpg', fx: 0.5, fy: 0.3 },
+  { key: 'pilot', label: 'THE STORM PILOT', file: 'assets/cast-pilot.jpg', fx: 0.5, fy: 0.34 },
+  { key: 'diver', label: 'THE PEARL DIVER', file: 'assets/cast-diver.jpg', fx: 0.5, fy: 0.36 },
 ];
-export const CAR = { key: 'car', label: 'THE MARLIN GT', file: 'assets/car.jpg', focusX: 0.5, focusY: 0.55, hue: '#ff4b2e' };
-export const AERIAL = { key: 'aerial', label: 'MARLIN COAST FROM ABOVE', file: 'assets/aerial.jpg', focusX: 0.5, focusY: 0.5, hue: '#2e9bff' };
 
-export const GRADES = {
-  sunset: {
-    name: 'Sunset',
-    sky: ['#1d1038', '#4a1458', '#93235e'],
-    wash: ['rgba(255,110,64,0)', 'rgba(255,64,120,0.34)'],
-    glow: 'rgba(255,170,60,0.20)',
-    title: ['#fff3b0', '#ffb02e', '#ff2e88'],
-    band: '#170b2e',
-  },
-  neon: {
-    name: 'Neon',
-    sky: ['#050914', '#0d1b3d', '#123a5e'],
-    wash: ['rgba(46,197,255,0)', 'rgba(255,46,136,0.30)'],
-    glow: 'rgba(46,197,255,0.20)',
-    title: ['#d8fbff', '#2ec5ff', '#ff2e88'],
-    band: '#04070f',
-  },
-  miami: {
-    name: 'Miami',
-    sky: ['#3d0f2e', '#7a1e4e', '#c23a3a'],
-    wash: ['rgba(255,226,89,0)', 'rgba(255,110,64,0.30)'],
-    glow: 'rgba(255,226,89,0.22)',
-    title: ['#ffffff', '#ffe259', '#ff7518'],
-    band: '#26081c',
-  },
+export const PHOTO_FILES = {
+  dj: 'assets/cast-dj.jpg',
+  driver: 'assets/cast-driver.jpg',
+  queen: 'assets/cast-queen.jpg',
+  pilot: 'assets/cast-pilot.jpg',
+  diver: 'assets/cast-diver.jpg',
+  car: 'assets/car.jpg',
+  aerial: 'assets/aerial.jpg',
 };
 
-const INK = '#0d0716';
-const PAPER = '#fff7ea';
+export const LAYOUTS = [
+  { id: 'slant', name: 'Cast Slant', blurb: 'Five slanted cast panels over an aerial strip and the red convertible.' },
+  { id: 'hero', name: 'Hero Car', blurb: 'The convertible takes the left half; the cast stacks down the right.' },
+  { id: 'portrait', name: 'Portrait Cast', blurb: 'One big portrait beside a four-panel cast grid.' },
+];
 
-/** A tiny deterministic random source, so the grain and the barcode bars are
- * the same on every render of the same cover. */
-function seeded(seed) {
+export const GRADES = [
+  { id: 'sunset', name: 'Sunset', top: '#ff9a3d', bottom: '#ff2e63', tint: '#ff7a18' },
+  { id: 'neon', name: 'Neon', top: '#ff2fb3', bottom: '#22d3ee', tint: '#7b2fff' },
+  { id: 'miami', name: 'Miami', top: '#2dd4bf', bottom: '#f472b6', tint: '#fda4af' },
+];
+
+export const SIZES = {
+  square: { id: 'square', label: 'Square 1080 × 1080', w: 1080, h: 1080 },
+  portrait: { id: 'portrait', label: 'Portrait 1080 × 1350', w: 1080, h: 1350 },
+  wide: { id: 'wide', label: 'Wide 1920 × 1080', w: 1920, h: 1080 },
+};
+
+export function defaultState() {
+  const crops = {};
+  for (const c of CAST) crops[c.key] = { zoom: 1, dx: 0, dy: 0 };
+  crops.car = { zoom: 1, dx: 0, dy: 0 };
+  crops.aerial = { zoom: 1, dx: 0, dy: 0 };
+  return {
+    layout: 'slant',
+    grade: 'sunset',
+    size: 'square',
+    title: 'MARLIN COAST',
+    script: 'where the tide keeps secrets',
+    quote: 'A POSTCARD WITH TEETH',
+    quoteBy: 'The Harbor Gazette',
+    crops,
+  };
+}
+
+export function loadPhotos(base = '') {
+  const out = {};
+  const jobs = Object.entries(PHOTO_FILES).map(([key, file]) => new Promise((done) => {
+    const img = new Image();
+    img.onload = () => { out[key] = img; done(); };
+    img.onerror = () => done();
+    img.src = base + file;
+  }));
+  return Promise.all(jobs).then(() => out);
+}
+
+function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+function rng(seed) {
   let s = seed >>> 0;
   return () => {
     s = (s * 1664525 + 1013904223) >>> 0;
@@ -60,375 +77,394 @@ function seeded(seed) {
   };
 }
 
-function fitFont(ctx, text, maxWidth, start, weight, family) {
-  let size = start;
+// Cover-fit an image into a rectangle, keeping the face point centred.
+// zoom magnifies; dx/dy nudge the framing as fractions of the rect.
+export function paintPhoto(ctx, img, r, fx, fy, crop) {
+  const zoom = crop?.zoom ?? 1;
+  const dx = crop?.dx ?? 0;
+  const dy = crop?.dy ?? 0;
+  const scale = Math.max(r.w / img.naturalWidth, r.h / img.naturalHeight) * zoom;
+  const dw = img.naturalWidth * scale;
+  const dh = img.naturalHeight * scale;
+  let ox = r.x + r.w / 2 - fx * dw + dx * r.w;
+  let oy = r.y + r.h / 2 - fy * dh + dy * r.h;
+  ox = clamp(ox, r.x + r.w - dw, r.x);
+  oy = clamp(oy, r.y + r.h - dh, r.y);
+  ctx.drawImage(img, ox, oy, dw, dh);
+}
+
+function slantPath(ctx, r, lean) {
+  ctx.beginPath();
+  ctx.moveTo(r.x + lean, r.y);
+  ctx.lineTo(r.x + r.w + lean, r.y);
+  ctx.lineTo(r.x + r.w, r.y + r.h);
+  ctx.lineTo(r.x, r.y + r.h);
+  ctx.closePath();
+}
+
+function rectPath(ctx, r) {
+  ctx.beginPath();
+  ctx.rect(r.x, r.y, r.w, r.h);
+}
+
+function panel(ctx, img, r, fx, fy, crop, lean, border) {
+  ctx.save();
+  if (lean) slantPath(ctx, r, lean); else rectPath(ctx, r);
+  ctx.clip();
+  ctx.fillStyle = '#10202e';
+  ctx.fillRect(r.x - 4, r.y - 4, r.w + 8, r.h + 8);
+  if (img) paintPhoto(ctx, img, { x: r.x, y: r.y, w: r.w, h: r.h }, fx, fy, crop);
+  // A faint warm wash inside the photo keeps the panels in one world.
+  const wash = ctx.createLinearGradient(r.x, r.y, r.x, r.y + r.h);
+  wash.addColorStop(0, 'rgba(255,150,60,0.10)');
+  wash.addColorStop(1, 'rgba(20,40,90,0.16)');
+  ctx.fillStyle = wash;
+  ctx.fillRect(r.x - 4, r.y - 4, r.w + 8, r.h + 8);
+  ctx.restore();
+  ctx.save();
+  if (lean) slantPath(ctx, r, lean); else rectPath(ctx, r);
+  ctx.lineWidth = border;
+  ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+  ctx.stroke();
+  ctx.restore();
+}
+
+// A slanted name tag pinned to the foot of a cast panel, sized to the
+// panel itself so long names never spill past its edges.
+function nameTag(ctx, text, r) {
+  let px = Math.max(11, Math.round(Math.min(r.w * 0.075, r.h * 0.2)));
+  ctx.font = `800 ${px}px "Arial Black", Arial, sans-serif`;
+  while (px > 9 && ctx.measureText(text).width > r.w - 14) {
+    px -= 1;
+    ctx.font = `800 ${px}px "Arial Black", Arial, sans-serif`;
+  }
+  ctx.save();
+  ctx.translate(r.x + 8, r.y + r.h - 10);
+  ctx.rotate(-0.07);
+  const tw = ctx.measureText(text).width;
+  const pad = Math.round(px * 0.55);
+  const th = px + Math.round(px * 0.7);
+  ctx.fillStyle = 'rgba(8,18,32,0.88)';
+  ctx.beginPath();
+  ctx.roundRect(-pad, -th + 4, tw + pad * 2, th, 4);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 0, -th / 2 + 5);
+  ctx.restore();
+}
+
+function fitFont(ctx, text, maxW, px, family, weight) {
+  let size = px;
   ctx.font = `${weight} ${size}px ${family}`;
-  while (ctx.measureText(text).width > maxWidth && size > 9) {
-    size -= 2;
+  while (size > 10 && ctx.measureText(text).width > maxW) {
+    size -= 1;
     ctx.font = `${weight} ${size}px ${family}`;
   }
   return size;
 }
 
-/** Draws `img` filling the rect (x, y, w, h), cover-style, anchored on the
- * focal point (fx, fy in 0..1 of the image) so a face stays in frame, with an
- * extra zoom and a nudge in panel fractions for the reader's own photo. */
-function drawPhoto(ctx, img, x, y, w, h, fx, fy, zoom = 1, nx = 0, ny = 0) {
-  if (!img) return;
-  const iw = img.naturalWidth || img.width;
-  const ih = img.naturalHeight || img.height;
-  if (!iw || !ih) return;
-  const scale = Math.max(w / iw, h / ih) * zoom;
-  const dw = iw * scale;
-  const dh = ih * scale;
-  let dx = x + w / 2 - fx * dw + nx * w;
-  let dy = y + h / 2 - fy * dh + ny * h;
-  dx = Math.min(x, Math.max(x + w - dw, dx));
-  dy = Math.min(y, Math.max(y + h - dh, dy));
-  ctx.drawImage(img, dx, dy, dw, dh);
-}
-
-function gradeWash(ctx, grade, x, y, w, h) {
-  const g = ctx.createLinearGradient(0, y, 0, y + h);
-  g.addColorStop(0, grade.wash[0]);
-  g.addColorStop(1, grade.wash[1]);
-  ctx.fillStyle = g;
-  ctx.fillRect(x, y, w, h);
-  const glow = ctx.createRadialGradient(x + w * 0.5, y + h * 0.12, 10, x + w * 0.5, y + h * 0.12, w * 0.9);
-  glow.addColorStop(0, grade.glow);
-  glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(x, y, w, h);
-}
-
-/** One slanted photograph panel: a parallelogram clip, the graded photo, a
- * hard white keyline, and (optionally) its slanted name tag. `slant` leans
- * the top edge to the right by that many base units. */
-function panel(ctx, state, meta, img, x, y, w, h, slant, withTag) {
-  const grade = GRADES[state.grade];
-  const isUser = state.userKey === meta.key && state.images.user;
-  const shown = isUser ? state.images.user : img;
-  const zoom = isUser ? state.zoom : 1;
-  const nx = isUser ? state.nudgeX : 0;
-  const ny = isUser ? state.nudgeY : 0;
+function arcText(ctx, text, cx, cy, radius, a0, a1) {
+  const chars = [...text];
+  const step = (a1 - a0) / Math.max(1, chars.length - 1);
   ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(x + slant, y);
-  ctx.lineTo(x + w, y);
-  ctx.lineTo(x + w - slant, y + h);
-  ctx.lineTo(x, y + h);
-  ctx.closePath();
-  ctx.clip();
-  ctx.save();
-  try { ctx.filter = 'saturate(1.22) contrast(1.06) brightness(1.02)'; } catch { /* older canvas */ }
-  drawPhoto(ctx, shown, x - slant, y, w + slant * 2, h, meta.focusX, meta.focusY, zoom, nx, ny);
-  ctx.restore();
-  gradeWash(ctx, grade, x - slant, y, w + slant * 2, h);
-  ctx.restore();
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(x + slant, y);
-  ctx.lineTo(x + w, y);
-  ctx.lineTo(x + w - slant, y + h);
-  ctx.lineTo(x, y + h);
-  ctx.closePath();
-  ctx.lineWidth = Math.max(3, w * 0.016);
-  ctx.strokeStyle = PAPER;
-  ctx.stroke();
-  ctx.restore();
-  if (withTag) nameTag(ctx, meta, x, y, w, h, slant);
-}
-
-/** The slanted name tag: a dark parallelogram riding the panel's foot, its
- * lettering shrunk until it fits the panel's own cross-section. */
-function nameTag(ctx, meta, x, y, w, h, slant) {
-  const th = Math.min(h * 0.13, w * 0.30);
-  const ty = y + h - th * 1.35;
-  const inset = slant * 0.35;
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(x + inset + th * 0.45, ty);
-  ctx.lineTo(x + w - inset, ty);
-  ctx.lineTo(x + w - inset - th * 0.45, ty + th);
-  ctx.lineTo(x + inset, ty + th);
-  ctx.closePath();
-  ctx.fillStyle = 'rgba(10,5,20,0.88)';
-  ctx.fill();
-  ctx.fillStyle = meta.hue;
-  ctx.fillRect(x + inset, ty + th - Math.max(3, th * 0.10), w - inset * 2 - th * 0.2, Math.max(3, th * 0.10));
-  ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  fitFont(ctx, meta.label, w - inset * 2 - th * 0.9, th * 0.46, 'italic 900', '"Arial Narrow", Arial, sans-serif');
-  ctx.fillText(meta.label, x + w / 2 - th * 0.1, ty + th * 0.46);
+  chars.forEach((ch, i) => {
+    const a = a0 + step * i;
+    ctx.save();
+    ctx.translate(cx + Math.cos(a) * radius, cy + Math.sin(a) * radius);
+    ctx.rotate(a + Math.PI / 2);
+    ctx.fillText(ch, 0, 0);
+    ctx.restore();
+  });
   ctx.restore();
 }
 
-function halftone(ctx, x, y, w, h, step, radius) {
+function barcode(ctx, x, y, w, h, seed) {
+  const roll = rng(seed);
+  let cx = x;
+  ctx.fillStyle = '#101418';
+  while (cx < x + w - 3) {
+    const bw = 1 + Math.floor(roll() * 4);
+    if (roll() > 0.42) ctx.fillRect(cx, y, bw, h);
+    cx += bw + 1 + Math.floor(roll() * 3);
+  }
+}
+
+// Panel geometry for each layout, all in fractions of the canvas.
+function geometry(layout, W, H) {
+  const m = Math.round(W * 0.033);
+  const g = Math.max(6, Math.round(W * 0.011));
+  const billH = Math.max(18, Math.round(H * 0.02));
+  const innerW = W - m * 2;
+  if (layout === 'hero') {
+    const aerialH = Math.round(H * 0.11);
+    const midY = m + aerialH + g;
+    const midH = Math.round(H * 0.5);
+    const titleY = midY + midH + g;
+    const carW = Math.round(innerW * 0.58);
+    const colX = m + carW + g;
+    const colW = innerW - carW - g;
+    const ph = (midH - g * 4) / 5;
+    return {
+      m, g, billH,
+      aerial: { x: m, y: m, w: innerW, h: aerialH, lean: 0 },
+      car: { x: m, y: midY, w: carW, h: midH, lean: 0 },
+      cast: CAST.map((c, i) => ({ key: c.key, x: colX, y: midY + i * (ph + g), w: colW, h: ph, lean: 0 })),
+      title: { x: m, y: titleY, w: innerW, h: H - titleY - m - billH - g },
+      billing: { x: m, y: H - m - billH, w: innerW, h: billH },
+    };
+  }
+  if (layout === 'portrait') {
+    const topH = Math.round(H * 0.52);
+    const bigW = Math.round(innerW * 0.46);
+    const gridX = m + bigW + g;
+    const gridW = innerW - bigW - g;
+    const cellW = (gridW - g) / 2;
+    const cellH = (topH - g) / 2;
+    const rest = CAST.slice(1);
+    const aerialY = m + topH + g;
+    const aerialH = Math.round(H * 0.09);
+    const botY = aerialY + aerialH + g;
+    const botH = H - botY - m - billH - g;
+    const carW = Math.round(innerW * 0.42);
+    return {
+      m, g, billH,
+      aerial: { x: m, y: aerialY, w: innerW, h: aerialH, lean: 0 },
+      car: { x: m, y: botY, w: carW, h: botH, lean: 0 },
+      cast: [
+        { key: 'queen', x: m, y: m, w: bigW, h: topH, lean: 0 },
+        ...rest.map((c, i) => ({
+          key: c.key,
+          x: gridX + (i % 2) * (cellW + g),
+          y: m + Math.floor(i / 2) * (cellH + g),
+          w: cellW, h: cellH, lean: 0,
+        })),
+      ],
+      title: { x: m + carW + g, y: botY, w: innerW - carW - g, h: botH },
+      billing: { x: m, y: H - m - billH, w: innerW, h: billH },
+    };
+  }
+  // slant — the flagship
+  const castH = Math.round(H * 0.5);
+  const castY = m + 6;
+  const pw = (innerW - g * 4) / 5;
+  const aerialY = castY + castH + g;
+  const aerialH = Math.round(H * 0.1);
+  const botY = aerialY + aerialH + g;
+  const botH = H - botY - m - billH - g;
+  const carW = Math.round(innerW * 0.52);
+  return {
+    m, g, billH,
+    aerial: { x: m, y: aerialY, w: innerW, h: aerialH, lean: -Math.round(innerW * 0.012) },
+    car: { x: m, y: botY, w: carW, h: botH, lean: 0 },
+    cast: CAST.map((c, i) => ({
+      key: c.key, x: m + i * (pw + g), y: castY, w: pw, h: castH,
+      lean: Math.round(pw * 0.13),
+    })),
+    title: { x: m + carW + g, y: botY, w: innerW - carW - g, h: botH },
+    billing: { x: m, y: H - m - billH, w: innerW, h: billH },
+  };
+}
+
+function gradeWash(ctx, grade, W, H) {
+  const wash = ctx.createLinearGradient(0, 0, W * 0.35, H);
+  wash.addColorStop(0, grade.top);
+  wash.addColorStop(1, grade.bottom);
   ctx.save();
-  ctx.fillStyle = 'rgba(255,255,255,0.16)';
-  for (let row = 0, yy = y + step / 2; yy < y + h; row++, yy += step) {
-    for (let xx = x + step / 2 + (row % 2 ? step / 2 : 0); xx < x + w; xx += step) {
+  ctx.globalCompositeOperation = 'soft-light';
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = wash;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = grade.tint;
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+  // Vignette: darker corners, brighter centre.
+  const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.42, W / 2, H / 2, Math.max(W, H) * 0.75);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(10,8,24,0.34)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function grain(ctx, W, H) {
+  const roll = rng(20261121);
+  ctx.save();
+  for (let i = 0; i < Math.floor((W * H) / 260); i++) {
+    const v = roll();
+    ctx.fillStyle = v > 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
+    ctx.fillRect(Math.floor(roll() * W), Math.floor(roll() * H), 1.4, 1.4);
+  }
+  ctx.restore();
+}
+
+// Halftone dots live only on the title band — the photos stay photographic.
+function titleHalftone(ctx, r) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(r.x, r.y, r.w, r.h);
+  ctx.clip();
+  for (let y = r.y + 4; y < r.y + r.h; y += 9) {
+    for (let x = r.x + 4; x < r.x + r.w; x += 9) {
+      const rad = 0.6 + 1.3 * Math.abs(Math.sin(x * 0.021 + y * 0.013));
+      ctx.fillStyle = 'rgba(20,10,30,0.10)';
       ctx.beginPath();
-      ctx.arc(xx, yy, radius, 0, Math.PI * 2);
+      ctx.arc(x, y, rad, 0, Math.PI * 2);
       ctx.fill();
     }
   }
   ctx.restore();
 }
 
-function grain(ctx, w, h) {
-  const rnd = seeded(20261120);
-  ctx.save();
-  for (let i = 0; i < 2600; i++) {
-    const a = rnd() * 0.05;
-    ctx.fillStyle = rnd() > 0.5 ? `rgba(255,255,255,${a})` : `rgba(0,0,0,${a})`;
-    ctx.fillRect(rnd() * w, rnd() * h, 1.6, 1.6);
-  }
-  ctx.restore();
-}
-
-function barcode(ctx, x, y, w, h) {
-  const rnd = seeded(11010);
-  ctx.save();
-  ctx.fillStyle = PAPER;
+function dressTitle(ctx, state, t) {
+  const { x, y, w, h } = t;
+  const pad = Math.max(10, Math.round(w * 0.04));
+  // Band ground: dusk navy to magenta, so the title gradient pops.
+  const ground = ctx.createLinearGradient(x, y, x + w, y + h);
+  ground.addColorStop(0, '#1b1440');
+  ground.addColorStop(0.55, '#3d1150');
+  ground.addColorStop(1, '#120e2a');
+  ctx.fillStyle = ground;
   ctx.fillRect(x, y, w, h);
-  ctx.fillStyle = INK;
-  let cx = x + w * 0.06;
-  while (cx < x + w * 0.94) {
-    const bw = (0.5 + rnd() * 2.2) * (w / 90);
-    if (rnd() > 0.35) ctx.fillRect(cx, y + h * 0.10, bw, h * 0.68);
-    cx += bw + (0.6 + rnd() * 1.6) * (w / 90);
+  titleHalftone(ctx, t);
+
+  const ink = ctx.createLinearGradient(x, y, x + w, y + h * 0.7);
+  ink.addColorStop(0, '#ffd319');
+  ink.addColorStop(0.5, '#ff2975');
+  ink.addColorStop(1, '#ff7a18');
+  const words = state.title.split(/\s+/);
+  // Size the lettering from the band's HEIGHT first (wide bands get tall
+  // text otherwise), with the width only as a cap — the whole dressing
+  // (title, script, quote, seal, barcode) must fit inside the band.
+  const titlePx = Math.max(20, Math.round(Math.min(w * 0.16, h * 0.17)));
+  ctx.textBaseline = 'alphabetic';
+  let ty = y + pad + titlePx * 0.95;
+  for (const word of words) {
+    const size = fitFont(ctx, word, w - pad * 2, titlePx, '"Arial Black", Arial, sans-serif', '900');
+    ctx.font = `900 ${size}px "Arial Black", Arial, sans-serif`;
+    ctx.lineWidth = Math.max(2, size * 0.06);
+    ctx.strokeStyle = 'rgba(20,8,28,0.85)';
+    ctx.strokeText(word, x + pad, ty);
+    ctx.fillStyle = ink;
+    ctx.fillText(word, x + pad, ty);
+    ty += size * 1.04;
   }
-  ctx.font = `700 ${h * 0.16}px Arial, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.fillText('MC 0110 2026', x + w / 2, y + h * 0.95);
-  ctx.restore();
-}
 
-function seal(ctx, cx, cy, r) {
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(13,7,22,0.82)';
-  ctx.fill();
-  ctx.lineWidth = r * 0.07;
-  ctx.strokeStyle = '#ffe259';
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(cx, cy, r * 0.78, 0, Math.PI * 2);
-  ctx.lineWidth = r * 0.03;
-  ctx.stroke();
-  ctx.fillStyle = '#ffe259';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = `900 ${r * 0.25}px "Arial Narrow", Arial, sans-serif`;
-  ctx.fillText('ORIGINAL', cx, cy - r * 0.22);
-  ctx.fillText('PHOTOGRAPHY', cx, cy + r * 0.14);
-  ctx.font = `700 ${r * 0.20}px Arial, sans-serif`;
-  ctx.fillText('· EST. 2026 ·', cx, cy + r * 0.48);
-  ctx.restore();
-}
+  // Script line under the title.
+  const scriptPx = Math.max(11, Math.round(Math.min(w * 0.055, h * 0.055)));
+  ctx.font = `italic 600 ${scriptPx}px Georgia, "Times New Roman", serif`;
+  ctx.fillStyle = '#ffe9a8';
+  ctx.fillText(state.script, x + pad, ty + scriptPx * 0.4);
 
-function chip(ctx, x, y, size) {
-  ctx.save();
-  ctx.translate(x + size / 2, y + size / 2);
-  ctx.rotate(-0.10);
-  ctx.fillStyle = '#ff2e88';
-  ctx.strokeStyle = PAPER;
-  ctx.lineWidth = size * 0.05;
-  const s = size / 2;
-  ctx.beginPath();
-  ctx.roundRect(-s, -s, size, size, size * 0.16);
-  ctx.fill();
-  ctx.stroke();
+  // Star quote.
+  const qY = ty + scriptPx * 2.1;
+  const qPx = Math.max(11, Math.round(Math.min(w * 0.05, h * 0.05)));
+  ctx.font = `800 ${qPx}px Arial, sans-serif`;
   ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = `900 ${size * 0.30}px "Arial Narrow", Arial, sans-serif`;
-  ctx.fillText('NO. 10', 0, -size * 0.10);
-  ctx.font = `700 ${size * 0.17}px Arial, sans-serif`;
-  ctx.fillText('COVER', 0, size * 0.24);
-  ctx.restore();
-}
+  const qText = `★ ${state.quote}`;
+  fitFont(ctx, qText, w - pad * 2, qPx, 'Arial, sans-serif', '800');
+  ctx.fillText(qText, x + pad, qY);
+  ctx.font = `italic 400 ${Math.round(qPx * 0.85)}px Georgia, serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.fillText(`— ${state.quoteBy}`, x + pad, qY + qPx * 1.25);
 
-/** The masthead: halftone title band, the gradient MARLIN COAST lettering,
- * the script line under it, the seal and the issue chip. */
-function masthead(ctx, state, W, bandH) {
-  const grade = GRADES[state.grade];
-  const g = ctx.createLinearGradient(0, 0, 0, bandH);
-  g.addColorStop(0, grade.sky[0]);
-  g.addColorStop(0.55, grade.sky[1]);
-  g.addColorStop(1, grade.sky[2]);
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, bandH);
-  halftone(ctx, 0, 0, W, bandH, W * 0.021, W * 0.0035);
-  const sun = ctx.createRadialGradient(W * 0.5, bandH * 1.05, 10, W * 0.5, bandH * 1.05, W * 0.55);
-  sun.addColorStop(0, grade.glow);
-  sun.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = sun;
-  ctx.fillRect(0, 0, W, bandH);
-
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  const title = 'MARLIN COAST';
-  const size = fitFont(ctx, title, W * 0.70, bandH * 0.48, 'italic 900', '"Arial Narrow", Arial, sans-serif');
-  const tg = ctx.createLinearGradient(0, bandH * 0.08, 0, bandH * 0.72);
-  tg.addColorStop(0, grade.title[0]);
-  tg.addColorStop(0.55, grade.title[1]);
-  tg.addColorStop(1, grade.title[2]);
-  ctx.lineWidth = size * 0.16;
-  ctx.strokeStyle = INK;
-  ctx.lineJoin = 'round';
-  ctx.strokeText(title, W / 2, bandH * 0.40);
-  ctx.fillStyle = tg;
-  ctx.fillText(title, W / 2, bandH * 0.40);
-  ctx.font = `italic 600 ${bandH * 0.155}px Georgia, "Times New Roman", serif`;
-  ctx.fillStyle = PAPER;
-  ctx.shadowColor = 'rgba(0,0,0,0.55)';
-  ctx.shadowBlur = 6;
-  ctx.fillText('where the tide keeps secrets', W / 2, bandH * 0.815);
-  ctx.restore();
-
-  chip(ctx, W * 0.020, bandH * 0.18, bandH * 0.56);
-  seal(ctx, W * 0.938, bandH * 0.47, bandH * 0.26);
-}
-
-/** The reader's caption as a slanted banner across the sheet. */
-function captionBanner(ctx, state, W, y) {
-  const text = (state.caption || '').trim().toUpperCase();
-  if (!text) return;
-  const h = W * 0.075;
-  ctx.save();
-  ctx.translate(W / 2, y);
-  ctx.rotate(-0.018);
+  // NO. 10 chip, top-right of the band.
+  const chip = 'NO. 10';
+  const chipPx = Math.max(11, Math.round(Math.min(w * 0.045, h * 0.06)));
+  ctx.font = `800 ${chipPx}px Arial, sans-serif`;
+  const cw = ctx.measureText(chip).width + chipPx * 1.2;
+  const ch = chipPx * 1.9;
+  ctx.fillStyle = '#ffd319';
   ctx.beginPath();
-  ctx.moveTo(-W * 0.40 + h * 0.4, -h / 2);
-  ctx.lineTo(W * 0.40, -h / 2);
-  ctx.lineTo(W * 0.40 - h * 0.4, h / 2);
-  ctx.lineTo(-W * 0.40, h / 2);
-  ctx.closePath();
-  ctx.fillStyle = '#ffe259';
+  ctx.roundRect(x + w - pad - cw, y + pad * 0.7, cw, ch, ch / 2);
   ctx.fill();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = INK;
+  ctx.fillStyle = '#1b1440';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(chip, x + w - pad - cw / 2, y + pad * 0.7 + ch / 2 + 1);
+  ctx.textAlign = 'left';
+
+  // Circular ORIGINAL PHOTOGRAPHY seal, bottom-right of the band.
+  const sealR = Math.max(20, Math.round(Math.min(w * 0.19, h * 0.22)));
+  const scx = x + w - pad - sealR;
+  const scy = y + h - pad - sealR;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(scx, scy, sealR, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,211,25,0.94)';
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#1b1440';
   ctx.stroke();
-  ctx.fillStyle = INK;
+  ctx.beginPath();
+  ctx.arc(scx, scy, sealR * 0.72, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = '#1b1440';
+  ctx.font = `800 ${Math.max(7, Math.round(sealR * 0.2))}px Arial, sans-serif`;
+  arcText(ctx, 'ORIGINAL PHOTOGRAPHY • ', scx, scy, sealR * 0.86, -Math.PI * 0.85, Math.PI * 0.85);
+  ctx.font = `900 ${Math.round(sealR * 0.5)}px Arial, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  fitFont(ctx, text, W * 0.74, h * 0.52, 'italic 900', '"Arial Narrow", Arial, sans-serif');
-  ctx.fillText(text, 0, h * 0.03);
+  ctx.fillText('★', scx, scy + 1);
   ctx.restore();
+
+  // Barcode, bottom-left of the band.
+  barcode(ctx, x + pad, y + h - pad - Math.max(14, Math.round(h * 0.09)), Math.round(w * 0.3), Math.max(14, Math.round(h * 0.09)), 7);
 }
 
-/** The foot of the sheet: tagline, the Gazette star quote, the billing strip
- * and the barcode, over a dark band. */
-function footer(ctx, state, W, H, top) {
-  const h = H - top;
-  ctx.fillStyle = GRADES[state.grade].band;
-  ctx.fillRect(0, top, W, h);
-  ctx.save();
-  ctx.textAlign = 'center';
-  ctx.fillStyle = PAPER;
-  ctx.textBaseline = 'middle';
-  fitFont(ctx, 'FIVE FACES · ONE COASTLINE · NO WAY BACK', W * 0.62, h * 0.20, '900', '"Arial Narrow", Arial, sans-serif');
-  ctx.fillText('FIVE FACES · ONE COASTLINE · NO WAY BACK', W * 0.44, top + h * 0.30);
-  ctx.font = `italic 600 ${h * 0.145}px Georgia, serif`;
-  ctx.fillStyle = '#ffd9ec';
-  const quote = '★★★★★  “A POSTCARD WITH TEETH” — The Harbor Gazette';
-  fitFont(ctx, quote, W * 0.62, h * 0.145, 'italic 600', 'Georgia, serif');
-  ctx.fillText(quote, W * 0.44, top + h * 0.60);
-  ctx.font = `500 ${h * 0.085}px Arial, sans-serif`;
-  ctx.fillStyle = 'rgba(255,247,234,0.62)';
-  const billing = 'MARLIN COAST COVER STUDIO · A FICTIONAL COASTLINE · FIVE FACES ONE TIDE · PRINTED IN NEON · NO WAY BACK';
-  fitFont(ctx, billing, W * 0.9, h * 0.085, '500', 'Arial, sans-serif');
-  ctx.fillText(billing, W / 2, top + h * 0.82);
-  ctx.restore();
-  barcode(ctx, W * 0.885, top + h * 0.14, W * 0.095, h * 0.62);
-}
-
-function frame(ctx, W, H) {
-  ctx.save();
-  ctx.strokeStyle = PAPER;
-  ctx.lineWidth = Math.max(4, W * 0.007);
-  ctx.strokeRect(ctx.lineWidth, ctx.lineWidth, W - ctx.lineWidth * 2, H - ctx.lineWidth * 2);
-  ctx.strokeStyle = 'rgba(13,7,22,0.9)';
-  ctx.lineWidth = Math.max(2, W * 0.003);
-  const inset = W * 0.016;
-  ctx.strokeRect(inset, inset, W - inset * 2, H - inset * 2);
-  ctx.restore();
-}
-
-/** Cast Slant, the flagship: five slanted cast panels over an aerial strip
- * and the car panel. */
-function layoutCast(ctx, state, W, H) {
-  const bandH = H * 0.165;
-  masthead(ctx, state, W, bandH);
-  const top = bandH + H * 0.012;
-  const midH = H * 0.475;
-  const slant = W * 0.045;
-  const pw = W * 0.188;
-  const gap = W * 0.006;
-  const total = pw * 5 + gap * 4;
-  let x = (W - total) / 2;
-  CAST.forEach((meta, i) => {
-    panel(ctx, state, meta, state.images[meta.key], x, top + (i % 2 ? H * 0.008 : 0), pw, midH - (i % 2 ? H * 0.008 : 0), slant, true);
-    x += pw + gap;
-  });
-  captionBanner(ctx, state, W, top + midH + H * 0.028);
-  const stripY = top + midH + H * 0.062;
-  const stripH = H * 0.155;
-  panel(ctx, state, AERIAL, state.images.aerial, W * 0.018, stripY, W * 0.565, stripH, slant * 0.7, true);
-  panel(ctx, state, CAR, state.images.car, W * 0.60, stripY, W * 0.382, stripH, slant * 0.7, true);
-  footer(ctx, state, W, H, H * 0.925);
-}
-
-/** Hero Car: the convertible takes the wide panel, three faces under it. */
-function layoutHero(ctx, state, W, H) {
-  const bandH = H * 0.165;
-  masthead(ctx, state, W, bandH);
-  const top = bandH + H * 0.012;
-  const slant = W * 0.04;
-  panel(ctx, state, CAR, state.images.car, W * 0.018, top, W * 0.964, H * 0.40, slant, true);
-  captionBanner(ctx, state, W, top + H * 0.435);
-  const rowY = top + H * 0.478;
-  const rowH = H * 0.225;
-  const picks = [CAST[0], CAST[2], CAST[3]].map((m) => ({ ...m, focusY: 0.40 }));
-  const pw = W * 0.318;
-  picks.forEach((meta, i) => {
-    panel(ctx, state, meta, state.images[meta.key], W * 0.018 + i * (pw + W * 0.005), rowY, pw, rowH, slant, true);
-  });
-  footer(ctx, state, W, H, H * 0.925);
-}
-
-/** Portrait Cast: two tall portraits side by side over the aerial strip. */
-function layoutPortrait(ctx, state, W, H) {
-  const bandH = H * 0.165;
-  masthead(ctx, state, W, bandH);
-  const top = bandH + H * 0.012;
-  const slant = W * 0.045;
-  const bigH = H * 0.545;
-  panel(ctx, state, CAST[1], state.images[CAST[1].key], W * 0.018, top, W * 0.472, bigH, slant, true);
-  panel(ctx, state, CAST[2], state.images[CAST[2].key], W * 0.51, top, W * 0.472, bigH, slant, true);
-  captionBanner(ctx, state, W, top + bigH + H * 0.030);
-  const stripY = top + bigH + H * 0.062;
-  panel(ctx, state, AERIAL, state.images.aerial, W * 0.018, stripY, W * 0.964, H * 0.115, slant * 0.7, true);
-  footer(ctx, state, W, H, H * 0.925);
-}
-
-const LAYOUTS = { cast: layoutCast, hero: layoutHero, portrait: layoutPortrait };
-
-/** Paints the whole cover onto `canvas` at the canvas's own pixel size.
- * `state` is { layout, grade, caption, images, userKey, zoom, nudgeX, nudgeY },
- * where images maps each panel key (and `user`) to an Image or null. */
-export function drawCover(canvas, state) {
+export function drawCover(canvas, photos, state) {
+  const size = SIZES[state.size] ?? SIZES.square;
+  const W = size.w;
+  const H = size.h;
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext('2d');
-  const W = canvas.width;
-  const H = canvas.height;
-  ctx.fillStyle = GRADES[state.grade].band;
+  const grade = GRADES.find((g) => g.id === state.grade) ?? GRADES[0];
+
+  // Backdrop.
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, '#0e1b2c');
+  bg.addColorStop(1, '#241536');
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
-  (LAYOUTS[state.layout] || layoutCast)(ctx, state, W, H);
+
+  const geo = geometry(state.layout, W, H);
+  const border = Math.max(2, Math.round(W * 0.003));
+
+  for (const p of geo.cast) {
+    const cast = CAST.find((c) => c.key === p.key);
+    panel(ctx, photos[p.key], p, cast.fx, cast.fy, state.crops[p.key], p.lean, border);
+    nameTag(ctx, cast.label, p);
+  }
+  panel(ctx, photos.aerial, geo.aerial, 0.5, 0.5, state.crops.aerial, geo.aerial.lean, border);
+  panel(ctx, photos.car, geo.car, 0.5, 0.55, state.crops.car, 0, border);
+
+  dressTitle(ctx, state, geo.title);
+
+  // Billing strip along the bottom inside the frame.
+  const b = geo.billing;
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  const billPx = Math.max(9, Math.round(b.h * 0.52));
+  fitFont(ctx, 'MARLIN COAST COVER STUDIO  •  FIVE FACES  •  ONE COASTLINE  •  NO WAY BACK', b.w - 4, billPx, 'Arial, sans-serif', '700');
+  ctx.textBaseline = 'middle';
+  ctx.fillText('MARLIN COAST COVER STUDIO  •  FIVE FACES  •  ONE COASTLINE  •  NO WAY BACK', b.x + 2, b.y + b.h / 2 + 1);
+
+  gradeWash(ctx, grade, W, H);
   grain(ctx, W, H);
-  frame(ctx, W, H);
+
+  // Double frame: thick white outer line, thin inner line whose bottom
+  // edge stops above the billing strip so it never crosses the text.
+  const m = geo.m;
+  ctx.lineWidth = Math.max(4, Math.round(W * 0.008));
+  ctx.strokeStyle = '#ffffff';
+  ctx.strokeRect(m / 2, m / 2, W - m, H - m);
+  ctx.lineWidth = Math.max(1, Math.round(W * 0.0015));
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.strokeRect(m + 6, m + 6, W - (m + 6) * 2, H - (m + 6) * 2 - geo.billH - geo.g);
+  return { w: W, h: H };
 }

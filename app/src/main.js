@@ -1,130 +1,221 @@
-// Marlin Coast Cover Studio — the page wiring.
-//
-// The studio opens with the bundled Marlin Coast photographs already on the
-// sheet, so the cover is alive at first paint. Dropping in your own photos
-// replaces panels in order from the panel you pick; the caption, layout,
-// grade, size and the photo's zoom and position are all live controls, and
-// Export renders the exact post size as a PNG. Everything happens on this
-// machine: photos are read as object URLs and never uploaded. A `?shot=`
-// query instead stages a fixed scene for the screenshots (./shots.js).
-import { CAST, CAR, AERIAL, drawCover } from './cover.js';
-import { runShot } from './shots.js';
+// Marlin Coast Cover Studio — editor wiring (round 12).
+// Owns the page state, the bundled-photo defaults, per-panel crop
+// controls, user-photo uploads and the PNG export. The drawing itself
+// lives in cover.js; this file only drives it from the page.
 
-export const PANELS = [...CAST, CAR, AERIAL];
-export const SIZES = {
-  '1080x1080': [1080, 1080],
-  '1080x1350': [1080, 1350],
-  '1920x1080': [1920, 1080],
-};
+import { CAST, GRADES, LAYOUTS, SIZES, defaultState, drawCover, loadPhotos } from './cover.js';
 
-const canvas = document.getElementById('cover');
-const els = {
-  photos: document.getElementById('photos'),
-  caption: document.getElementById('caption'),
-  layout: document.getElementById('layout'),
-  grade: document.getElementById('grade'),
-  size: document.getElementById('size'),
-  target: document.getElementById('target'),
-  zoom: document.getElementById('zoom'),
-  nudgeX: document.getElementById('nudge-x'),
-  nudgeY: document.getElementById('nudge-y'),
-  reset: document.getElementById('reset-photo'),
-  export: document.getElementById('export'),
-  status: document.getElementById('status'),
-};
+const state = defaultState();
+let photos = {};
+let pickedPanel = 'dj';
 
-export const state = {
-  layout: 'cast',
-  grade: 'sunset',
-  caption: 'Sunset Heist',
-  images: { user: null },
-  userKey: 'dj',
-  zoom: 1,
-  nudgeX: 0,
-  nudgeY: 0,
-};
-for (const meta of PANELS) state.images[meta.key] = null;
+const $ = (id) => document.getElementById(id);
+const preview = $('preview');
+const notice = $('notice');
 
-/** Loads an image from a URL, resolving once it can be drawn. */
-export function loadImage(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = url;
+function showNotice(text) {
+  notice.textContent = text;
+  notice.hidden = !text;
+}
+
+function refreshPreview() {
+  try {
+    const dims = drawCover(preview, photos, state);
+    preview.dataset.w = String(dims.w);
+    preview.dataset.h = String(dims.h);
+  } catch (err) {
+    showNotice(`Preview failed: ${err.message}`);
+  }
+}
+
+function markButtons(group, value) {
+  for (const btn of document.querySelectorAll(`[data-group="${group}"]`)) {
+    btn.classList.toggle('on', btn.dataset.value === value);
+  }
+}
+
+function buildControlRows() {
+  const layoutBox = $('layouts');
+  for (const item of LAYOUTS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.dataset.group = 'layout';
+    btn.dataset.value = item.id;
+    btn.textContent = item.name;
+    btn.title = item.blurb;
+    btn.addEventListener('click', () => {
+      state.layout = item.id;
+      markButtons('layout', item.id);
+      refreshPreview();
+    });
+    layoutBox.appendChild(btn);
+  }
+  const gradeBox = $('grades');
+  for (const item of GRADES) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.dataset.group = 'grade';
+    btn.dataset.value = item.id;
+    btn.textContent = item.name;
+    btn.addEventListener('click', () => {
+      state.grade = item.id;
+      markButtons('grade', item.id);
+      refreshPreview();
+    });
+    gradeBox.appendChild(btn);
+  }
+  const sizeBox = $('sizes');
+  for (const item of Object.values(SIZES)) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.dataset.group = 'size';
+    btn.dataset.value = item.id;
+    btn.textContent = item.label;
+    btn.addEventListener('click', () => {
+      state.size = item.id;
+      markButtons('size', item.id);
+      refreshPreview();
+    });
+    sizeBox.appendChild(btn);
+  }
+  const panelBox = $('panels');
+  const entries = [...CAST.map((c) => ({ key: c.key, label: c.label })), { key: 'car', label: 'THE RED CONVERTIBLE' }, { key: 'aerial', label: 'THE COAST FROM ABOVE' }];
+  for (const entry of entries) {
+    const row = document.createElement('div');
+    row.className = 'panel-row';
+    const pick = document.createElement('button');
+    pick.type = 'button';
+    pick.className = 'panel-pick';
+    pick.textContent = entry.label;
+    pick.addEventListener('click', () => {
+      pickedPanel = entry.key;
+      syncCropControls();
+      for (const el of panelBox.querySelectorAll('.panel-pick')) el.classList.toggle('on', el === pick);
+    });
+    const load = document.createElement('label');
+    load.className = 'file-btn';
+    load.textContent = 'Use your photo';
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.hidden = true;
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        photos[entry.key] = img;
+        state.crops[entry.key] = { zoom: 1, dx: 0, dy: 0 };
+        pickedPanel = entry.key;
+        syncCropControls();
+        refreshPreview();
+        showNotice(`${entry.label} now uses your photo. Nothing is uploaded — it stays in this browser.`);
+      };
+      img.onerror = () => showNotice('That file could not be read as a photo.');
+      img.src = url;
+    });
+    load.appendChild(input);
+    row.appendChild(pick);
+    row.appendChild(load);
+    panelBox.appendChild(row);
+  }
+}
+
+function syncCropControls() {
+  const crop = state.crops[pickedPanel];
+  $('panel-name').textContent = pickedPanel.toUpperCase();
+  $('zoom').value = String(crop.zoom);
+  $('pan-x').value = String(crop.dx);
+  $('pan-y').value = String(crop.dy);
+  $('zoom-val').textContent = `${Math.round(crop.zoom * 100)}%`;
+  $('pan-x-val').textContent = crop.dx.toFixed(2);
+  $('pan-y-val').textContent = crop.dy.toFixed(2);
+}
+
+function wireInputs() {
+  $('title').addEventListener('input', (ev) => {
+    state.title = ev.target.value.trim() === '' ? 'MARLIN COAST' : ev.target.value.toUpperCase();
+    refreshPreview();
+  });
+  $('script').addEventListener('input', (ev) => {
+    state.script = ev.target.value;
+    refreshPreview();
+  });
+  $('quote').addEventListener('input', (ev) => {
+    state.quote = ev.target.value.toUpperCase();
+    refreshPreview();
+  });
+  $('zoom').addEventListener('input', (ev) => {
+    state.crops[pickedPanel].zoom = Number(ev.target.value);
+    syncCropControls();
+    refreshPreview();
+  });
+  $('pan-x').addEventListener('input', (ev) => {
+    state.crops[pickedPanel].dx = Number(ev.target.value);
+    syncCropControls();
+    refreshPreview();
+  });
+  $('pan-y').addEventListener('input', (ev) => {
+    state.crops[pickedPanel].dy = Number(ev.target.value);
+    syncCropControls();
+    refreshPreview();
+  });
+  $('reset-crop').addEventListener('click', () => {
+    state.crops[pickedPanel] = { zoom: 1, dx: 0, dy: 0 };
+    syncCropControls();
+    refreshPreview();
+  });
+  $('shuffle').addEventListener('click', () => {
+    const order = [...CAST];
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    const swapped = {};
+    order.forEach((c, i) => { swapped[CAST[i].key] = photos[c.key]; });
+    Object.assign(photos, swapped);
+    refreshPreview();
+  });
+  $('export').addEventListener('click', () => {
+    const off = document.createElement('canvas');
+    const dims = drawCover(off, photos, state);
+    off.toBlob((blob) => {
+      if (!blob) { showNotice('Export failed: the browser could not make the PNG.'); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `marlin-coast-${state.layout}-${dims.w}x${dims.h}.png`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      showNotice(`Exported ${dims.w} × ${dims.h} PNG. Share it anywhere.`);
+    }, 'image/png');
   });
 }
 
-/** Loads every bundled photograph into the state; resolves when all are in. */
-export async function loadBundled() {
-  await Promise.all(PANELS.map(async (meta) => {
-    state.images[meta.key] = await loadImage(meta.file);
-  }));
+// Scene driver for screenshots: picks a layout/grade/size from the URL
+// and reports readiness once the first frame is painted.
+export function applyShotScene(params) {
+  if (params.has('layout')) state.layout = params.get('layout');
+  if (params.has('grade')) state.grade = params.get('grade');
+  if (params.has('size')) state.size = params.get('size');
+  if (params.has('title')) state.title = params.get('title').toUpperCase();
+  markButtons('layout', state.layout);
+  markButtons('grade', state.grade);
+  markButtons('size', state.size);
+  refreshPreview();
 }
 
-export function redraw() {
-  const [w, h] = SIZES[els.size.value] || SIZES['1080x1350'];
-  if (canvas.width !== w) canvas.width = w;
-  if (canvas.height !== h) canvas.height = h;
-  state.layout = els.layout.value;
-  state.grade = els.grade.value;
-  state.caption = els.caption.value;
-  state.userKey = els.target.value;
-  state.zoom = Number(els.zoom.value);
-  state.nudgeX = Number(els.nudgeX.value);
-  state.nudgeY = Number(els.nudgeY.value);
-  drawCover(canvas, state);
-}
+export const ready = (async () => {
+  buildControlRows();
+  wireInputs();
+  markButtons('layout', state.layout);
+  markButtons('grade', state.grade);
+  markButtons('size', state.size);
+  syncCropControls();
+  photos = await loadPhotos('');
+  refreshPreview();
+  return true;
+})();
 
-async function onPhotos(event) {
-  const files = [...(event.target.files || [])];
-  if (!files.length) return;
-  const start = PANELS.findIndex((m) => m.key === els.target.value);
-  for (let i = 0; i < files.length; i++) {
-    const meta = PANELS[(start + i) % PANELS.length];
-    const img = await loadImage(URL.createObjectURL(files[i]));
-    state.images[meta.key] = img;
-    if (i === 0) {
-      state.images.user = img;
-      state.userKey = meta.key;
-      els.target.value = meta.key;
-    }
-  }
-  els.status.textContent = files.length === 1
-    ? 'Your photo is on the cover. Nudge it, then export.'
-    : `${files.length} photos placed across the panels.`;
-  redraw();
-}
-
-function onExport() {
-  redraw();
-  canvas.toBlob((blob) => {
-    if (!blob) return;
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `marlin-coast-cover-${canvas.width}x${canvas.height}.png`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    els.status.textContent = `Saved marlin-coast-cover-${canvas.width}x${canvas.height}.png`;
-  }, 'image/png');
-}
-
-els.photos.addEventListener('change', onPhotos);
-for (const el of [els.caption, els.layout, els.grade, els.size, els.target, els.zoom, els.nudgeX, els.nudgeY]) {
-  el.addEventListener('input', redraw);
-  el.addEventListener('change', redraw);
-}
-els.reset.addEventListener('click', () => {
-  els.zoom.value = '1';
-  els.nudgeX.value = '0';
-  els.nudgeY.value = '0';
-  redraw();
-});
-els.export.addEventListener('click', onExport);
-
-const query = new URLSearchParams(location.search);
-if (query.get('shot')) {
-  runShot(query, { state, els, canvas, loadBundled, redraw });
-} else {
-  loadBundled().then(redraw).catch(() => redraw());
-}
+window.__marlin = { state, applyShotScene, ready, refreshPreview };

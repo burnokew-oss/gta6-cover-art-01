@@ -1,29 +1,56 @@
-// Fixed scenes for the screenshots in ../shots.json.
-//
-// ?shot=cover strips the page to the cover alone at the requested post size;
-// ?shot=editor keeps the whole studio on screen. Either way the bundled
-// photographs are loaded, the query's layout / grade / caption / size are
-// applied, the cover is painted, and window.__shotReady is set after two
-// animation frames so the screenshot pipeline never catches a half-paint.
-export async function runShot(query, app) {
-  const { state, els, canvas, loadBundled, redraw } = app;
-  const kind = query.get('shot');
-  if (query.get('layout')) els.layout.value = query.get('layout');
-  if (query.get('grade')) els.grade.value = query.get('grade');
-  if (query.get('caption')) els.caption.value = query.get('caption');
-  if (query.get('size')) els.size.value = query.get('size');
-  if (kind === 'cover') document.body.classList.add('shot-cover');
-  if (kind === 'editor') document.body.classList.add('shot-editor');
-  await loadBundled();
-  if (query.get('photo')) {
-    state.images.user = state.images[query.get('photo')] || null;
-    state.userKey = query.get('photo');
-    els.target.value = query.get('photo');
+// Marlin Coast Cover Studio — screenshot scenes (round 12).
+// Reads ?shot=cover|editor plus layout/grade/size/title from the URL and
+// paints exactly what the screenshots must show, then flags readiness
+// for the headless screenshot driver. Never edits or composites anything:
+// a cover shot is the app's own drawing at the viewport's size.
+
+import { drawCover } from './cover.js';
+
+const params = new URLSearchParams(location.search);
+const kind = params.get('shot') ?? 'editor';
+
+async function waitForMarlin() {
+  for (let i = 0; i < 200; i++) {
+    if (window.__marlin) return window.__marlin;
+    await new Promise((r) => setTimeout(r, 50));
   }
-  redraw();
-  if (kind === 'cover') {
-    canvas.style.width = '100vw';
-    canvas.style.height = '100vh';
-  }
-  requestAnimationFrame(() => requestAnimationFrame(() => { window.__shotReady = true; }));
+  throw new Error('editor did not start');
+}
+
+async function coverScene() {
+  const marlin = await waitForMarlin();
+  await marlin.ready;
+  document.body.classList.add('shot-cover');
+  marlin.applyShotScene(params);
+  // The cover fills the whole viewport for this shot.
+  const canvas = document.getElementById('preview');
+  const photos = await import('./cover.js').then((m) => m.loadPhotos(''));
+  const state = { ...marlin.state, size: 'square' };
+  const dims = { w: innerWidth, h: innerHeight };
+  canvas.width = dims.w;
+  canvas.height = dims.h;
+  const ctx = canvas.getContext('2d');
+  // Draw at the viewport's aspect through a scratch canvas sized to the
+  // matching export size, then scale it onto the shot canvas.
+  const scratch = document.createElement('canvas');
+  const ratio = dims.w / dims.h;
+  const pick = ratio > 1.4 ? 'wide' : ratio < 0.85 ? 'portrait' : 'square';
+  drawCover(scratch, photos, { ...state, size: pick });
+  ctx.drawImage(scratch, 0, 0, dims.w, dims.h);
+  window.__shotReady = true;
+}
+
+async function editorScene() {
+  const marlin = await waitForMarlin();
+  await marlin.ready;
+  marlin.applyShotScene(params);
+  document.body.classList.add('shot-editor');
+  await new Promise((r) => setTimeout(r, 120));
+  window.__shotReady = true;
+}
+
+if (kind === 'cover') {
+  coverScene().catch((err) => { window.__shotError = String(err); });
+} else {
+  editorScene().catch((err) => { window.__shotError = String(err); });
 }

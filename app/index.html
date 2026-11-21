@@ -3,89 +3,89 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Marlin Coast Cover Studio</title>
-<link rel="icon" href="data:,">
-<link rel="stylesheet" href="./style.css">
+<title>Marlin Coast Cover Studio — GTA-style poster maker</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main class="app">
-  <section class="controls">
-    <p class="kicker">Marlin Coast Cover Studio</p>
-    <h1>Your photo.<br>Five faces.<br>One coastline.</h1>
-    <p class="lede">Drop in a photo, write a caption, and walk out with a
-    multi-panel Marlin Coast cover — bold lettering, a sunset-or-neon grade,
-    and a light poster finish that keeps faces photographic. Everything runs
-    on this machine; your photos never leave it.</p>
-
-    <label class="field">Your photos
-      <input id="photos" type="file" accept="image/*" multiple>
-      <span class="hint">One photo fills the panel you pick below; several fill the panels in order.</span>
-    </label>
-
-    <label class="field">Caption
-      <input id="caption" type="text" maxlength="42" value="Sunset Heist">
-    </label>
-
-    <div class="row">
-      <label class="field">Layout
-        <select id="layout">
-          <option value="cast" selected>Cast Slant</option>
-          <option value="hero">Hero Car</option>
-          <option value="portrait">Portrait Cast</option>
-        </select>
-      </label>
-      <label class="field">Grade
-        <select id="grade">
-          <option value="sunset" selected>Sunset</option>
-          <option value="neon">Neon</option>
-          <option value="miami">Miami</option>
-        </select>
-      </label>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">MC</span>
+    <div>
+      <h1>Marlin Coast Cover Studio</h1>
+      <p>Turn your photos into a multi-panel coast poster — offline, in your browser.</p>
     </div>
+  </div>
+  <div class="top-actions">
+    <button id="shuffle" type="button" title="Deal the cast photos into different panels">Shuffle cast</button>
+    <button id="export" type="button" class="primary">Export PNG</button>
+  </div>
+</header>
 
-    <div class="row">
-      <label class="field">Post size
-        <select id="size">
-          <option value="1080x1080">Square · 1080 × 1080</option>
-          <option value="1080x1350" selected>Portrait · 1080 × 1350</option>
-          <option value="1920x1080">Wide · 1920 × 1080</option>
-        </select>
-      </label>
-      <label class="field">Your photo goes to
-        <select id="target">
-          <option value="dj" selected>The Night DJ panel</option>
-          <option value="driver">The Getaway Driver panel</option>
-          <option value="queen">The Boardwalk Queen panel</option>
-          <option value="pilot">The Storm Pilot panel</option>
-          <option value="diver">The Pearl Diver panel</option>
-          <option value="car">The Marlin GT panel</option>
-          <option value="aerial">The aerial panel</option>
-        </select>
-      </label>
-    </div>
-
-    <label class="field">Photo zoom
-      <input id="zoom" type="range" min="1" max="2.4" step="0.01" value="1">
-    </label>
-    <div class="row">
-      <label class="field">Shift sideways
-        <input id="nudge-x" type="range" min="-0.4" max="0.4" step="0.01" value="0">
-      </label>
-      <label class="field">Shift up / down
-        <input id="nudge-y" type="range" min="-0.4" max="0.4" step="0.01" value="0">
-      </label>
-    </div>
-    <button id="reset-photo" type="button" class="ghost">Reset photo position</button>
-    <button id="export" type="button">Export PNG</button>
-    <p id="status" role="status"></p>
-    <p class="fine">Bundled sheet: five original cast photographs, the Marlin GT
-    convertible and an aerial of the coast — all made for this studio.
-    FIVE FACES · ONE COASTLINE · NO WAY BACK.</p>
+<main class="studio">
+  <section class="stage" aria-label="Cover preview">
+    <canvas id="preview" width="1080" height="1080"></canvas>
+    <p id="notice" class="notice" hidden></p>
+    <p class="hint">Live preview — every change redraws the cover at once. Your photos never leave this machine.</p>
   </section>
-  <section class="stage">
-    <canvas id="cover" width="1080" height="1350" aria-label="Your Marlin Coast cover"></canvas>
-  </section>
+
+  <aside class="controls" aria-label="Cover controls">
+    <section class="group">
+      <h2>1 · Layout</h2>
+      <div id="layouts" class="btn-row"></div>
+    </section>
+
+    <section class="group">
+      <h2>2 · Colour grade</h2>
+      <div id="grades" class="btn-row"></div>
+      <p class="micro">Sunset, Neon or Miami — a light grade plus fine grain. The faces stay photographic.</p>
+    </section>
+
+    <section class="group">
+      <h2>3 · Export size</h2>
+      <div id="sizes" class="btn-row"></div>
+    </section>
+
+    <section class="group">
+      <h2>4 · Lettering</h2>
+      <label class="field">Title
+        <input id="title" type="text" value="MARLIN COAST" maxlength="24" autocomplete="off">
+      </label>
+      <label class="field">Script line
+        <input id="script" type="text" value="where the tide keeps secrets" maxlength="60" autocomplete="off">
+      </label>
+      <label class="field">Star quote
+        <input id="quote" type="text" value="A POSTCARD WITH TEETH" maxlength="40" autocomplete="off">
+      </label>
+    </section>
+
+    <section class="group">
+      <h2>5 · Photos &amp; framing</h2>
+      <p class="micro">Seven original photos ship with the studio. Tap a panel to frame it, or swap in your own photo.</p>
+      <div id="panels"></div>
+      <div class="crop-box">
+        <p class="crop-title">Framing <strong id="panel-name">DJ</strong></p>
+        <label class="slider">Zoom <span id="zoom-val">100%</span>
+          <input id="zoom" type="range" min="1" max="2.5" step="0.01" value="1">
+        </label>
+        <label class="slider">Pan left–right <span id="pan-x-val">0.00</span>
+          <input id="pan-x" type="range" min="-0.4" max="0.4" step="0.01" value="0">
+        </label>
+        <label class="slider">Pan up–down <span id="pan-y-val">0.00</span>
+          <input id="pan-y" type="range" min="-0.4" max="0.4" step="0.01" value="0">
+        </label>
+        <button id="reset-crop" type="button">Reset framing</button>
+      </div>
+    </section>
+
+    <section class="group about">
+      <h2>About this cover</h2>
+      <p>Five faces, one coastline, no way back. The cast — the Night DJ, the Getaway Driver, the Boardwalk Queen, the Storm Pilot and the Pearl Diver — plus the red convertible and the coast from above, dressed as a poster: gradient title, script line, Harbor Gazette star quote, NO. 10 chip, ORIGINAL PHOTOGRAPHY seal, barcode and billing strip.</p>
+      <p class="micro">All photos are original images made for this studio. No game artwork, logos or fonts are used.</p>
+    </section>
+  </aside>
 </main>
-<script type="module" src="./src/main.js"></script>
+
+<script type="module" src="src/main.js"></script>
+<script type="module" src="src/shots.js"></script>
 </body>
 </html>
